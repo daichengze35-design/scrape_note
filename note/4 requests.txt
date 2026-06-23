@@ -1,0 +1,660 @@
+爬虫基础
+    概念
+        爬虫是通过程序向网络资源发送请求，并从响应中提取目标数据的过程
+        浏览器本身会发送请求、接收响应、解析HTML、执行JavaScript、渲染页面
+        使用requests写爬虫时，程序主要完成发送请求和接收响应，不会自动执行JavaScript，也不会渲染页面
+        页面上能看到的数据，不一定存在于地址栏url对应的HTML响应中
+    常见抓不到数据的原因
+        地址栏url不是目标数据的真实来源
+        目标数据由浏览器后续接口请求加载
+        请求方式、请求参数或请求体不正确
+        缺少必要请求头、Cookie或登录状态
+        数据需要权限才能访问
+        访问频率过高导致请求被限制
+        页面内容由前端脚本计算、加密或渲染后生成
+        目标数据存在于图片、视频或画布中，不是普通文本
+    应用分类
+        通用爬虫
+            抓取整张页面源码或大量链接资源
+        聚焦爬虫
+            只抓取指定主题、指定页面或指定字段
+            通常需要先拿到页面或接口响应，再从中提取局部数据
+        自动化爬虫
+            通过浏览器自动化工具执行点击、输入、滚动、登录等行为
+            适用于目标数据必须经过页面交互后才能出现的场景
+        增量式爬虫
+            记录已经抓取过的数据标识
+            只抓取新增或发生变化的数据
+        分布式爬虫
+            多台机器或多个进程协同抓取任务
+            需要处理任务分发、去重、失败重试和数据合并
+    反爬与访问限制
+        反爬机制
+            网站为了保护数据、服务稳定性或业务规则，对自动化访问进行识别和限制
+        常见限制依据
+            请求频率
+            请求头特征
+            Cookie和登录状态
+            IP访问行为
+            接口签名或时间戳参数
+            验证码或人机校验
+        注意
+            不要把所有请求失败都归因为反爬
+            应先检查url、请求方式、参数、请求头、Cookie、响应状态码和响应内容
+    robots协议
+        robots协议用于声明网站希望爬虫如何访问站点资源
+        常见文件路径为站点根路径下的robots.txt
+        robots协议主要依靠爬虫主动遵守
+        robots协议不能真正阻止程序访问资源
+        注意
+            robots协议不是法律许可本身
+            即使robots协议允许抓取，也仍然需要遵守法律、网站条款和数据使用边界
+requests模块
+    概念
+        requests是Python第三方HTTP客户端库
+        requests可以让Python程序发送HTTP请求并接收服务器响应
+        requests适合请求页面源码、接口数据、图片、文件等网络资源
+        requests不会自动执行JavaScript
+        requests不会像浏览器一样渲染页面
+    安装
+        pip install requests
+    导入
+        import requests
+    基础流程
+        确认目标数据位置
+        确认请求url
+        确认请求方法
+        确认请求参数、请求头、Cookie和请求体
+        发送请求
+        检查响应状态码和响应内容
+        解析响应数据
+        持久化存储
+    常用请求方法
+        requests.get()
+            发送GET请求
+        requests.post()
+            发送POST请求
+        requests.put()
+            发送PUT请求
+        requests.patch()
+            发送PATCH请求
+        requests.delete()
+            发送DELETE请求
+        requests.request()
+            根据method参数发送指定请求
+    常用参数
+        url
+            请求地址
+        params
+            设置URL查询字符串参数
+            常用于GET请求
+            requests会自动对参数进行编码并拼接到url后面
+        data
+            设置请求体数据
+            常用于提交普通表单
+            默认适合application/x-www-form-urlencoded这类表单数据
+        json
+            设置JSON请求体
+            requests会把Python对象序列化为JSON字符串
+            requests会自动设置对应的Content-Type
+        headers
+            设置请求头
+            常用于补充User-Agent、Referer、Accept、Cookie等字段
+        cookies
+            设置本次请求携带的Cookie
+        files
+            设置上传文件
+        timeout
+            设置超时时间
+            建议所有网络请求都显式设置timeout
+        allow_redirects
+            控制是否自动跟随重定向
+        verify
+            控制是否校验证书
+            默认值为True
+            正常请求不要关闭证书校验
+        stream
+            控制是否流式读取响应内容
+            下载大文件时常用
+        proxies
+            设置代理
+    params、data、json易混淆点
+        params会进入URL查询字符串
+        data会进入请求体
+        json会进入请求体，并按JSON格式发送
+        GET请求通常使用params传参
+        POST普通表单通常使用data传参
+        POST接口要求JSON格式时通常使用json传参
+        具体使用哪一种必须以抓包结果或接口文档为准
+响应对象
+    概念
+        requests发送请求后会返回响应对象
+        响应对象保存服务器返回的状态码、响应头、响应体等信息
+    常用属性和方法
+        response.status_code
+            获取响应状态码
+            200通常表示请求成功
+            4xx通常表示客户端请求有问题
+            5xx通常表示服务器处理失败
+        response.ok
+            状态码小于400时通常为True
+            不建议只靠ok判断业务是否成功
+        response.url
+            获取最终请求地址
+            如果发生重定向，可能不是最初传入的url
+        response.headers
+            获取响应头
+        response.request.headers
+            获取实际发送出去的请求头
+        response.text
+            获取字符串形式的响应体
+            常用于HTML、文本等内容
+            requests会根据响应头等信息推断编码
+        response.content
+            获取字节形式的响应体
+            常用于图片、音频、视频、压缩包等二进制内容
+        response.json()
+            将JSON响应体反序列化为Python对象
+            前提是响应体本身必须是合法JSON
+        response.encoding
+            查看或设置response.text使用的编码
+            出现中文乱码时可以手动设置
+        response.apparent_encoding
+            requests推断出的可能编码
+            响应头编码错误时可以作为参考
+        response.cookies
+            获取本次响应中服务器设置的Cookie
+        response.raise_for_status()
+            如果状态码表示请求失败，则抛出异常
+            状态码正常时不返回具体数据
+    注意
+        response.json()成功不等于业务请求成功
+        有些接口即使状态码为500，也可能返回JSON格式错误信息
+        有些接口状态码为200，但业务字段表示失败
+        检查接口结果时通常同时看状态码和响应体中的业务字段
+GET请求
+    无参数GET
+        e.g.
+            import requests
+
+            url = "https://httpbin.org/html"
+
+            response = requests.get(url=url, timeout=10)
+            response.raise_for_status()
+
+            page_text = response.text
+
+            with open("httpbin.html", mode="w", encoding="utf-8") as f:
+                f.write(page_text)
+    携带查询参数GET
+        params用于封装GET请求参数
+        requests会把params字典自动拼接到URL查询字符串中
+        e.g.
+            import requests
+
+            url = "https://httpbin.org/get"
+
+            params = {
+                "keyword": "python requests",
+                "page": 1
+            }
+
+            response = requests.get(url=url, params=params, timeout=10)
+            response.raise_for_status()
+
+            data = response.json()
+
+            print(response.url)
+            print(data["args"])
+请求头
+    概念
+        请求头用于描述本次请求的附加信息
+        headers参数用于封装请求头字段
+    常见请求头
+        User-Agent
+            表示发起请求的浏览器或程序信息
+        Referer
+            表示当前请求来源页面
+            字段名历史拼写就是Referer
+        Accept
+            表示客户端希望接收的数据类型
+        Content-Type
+            表示请求体的数据格式
+        Cookie
+            表示本次请求携带的Cookie数据
+    User-Agent检测
+        网站可能根据User-Agent判断请求来源
+        如果User-Agent缺失或明显不是浏览器，可能返回不同内容或拒绝响应
+        User-Agent只是请求特征之一，不能保证请求一定成功
+    e.g.
+        import requests
+
+        url = "https://httpbin.org/headers"
+
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            # Mozilla/5.0：历史遗留标志，表明兼容Mozilla标准，避免被老旧服务器拒绝访问
+            # Windows NT 10.0; Win64; x64：系统信息
+            # AppleWebKit/537.36 (KHTML, like Gecko)：排版引擎版本
+            # Chrome/120.0.0.0：浏览器版本
+            # Safari/537.36：兼容性标志 Chrome声明兼容Safari规范
+
+            "Accept": "application/json"
+        }
+
+        response = requests.get(url=url, headers=headers, timeout=10)
+        response.raise_for_status()
+
+        data = response.json()
+
+        print(data["headers"])
+POST请求
+    概念
+        POST请求通常把提交数据放在请求体中
+        表单提交常用data参数
+        JSON接口常用json参数
+    data提交表单数据
+        e.g.
+            import requests
+
+            url = "https://httpbin.org/post"
+
+            data = {
+                "username": "zhangsan",
+                "password": "123456"
+            }
+
+            response = requests.post(url=url, data=data, timeout=10)
+            response.raise_for_status()
+
+            result = response.json()
+
+            print(result["form"])
+    json提交JSON数据
+        e.g.
+            import requests
+
+            url = "https://httpbin.org/post"
+
+            json_data = {
+                "keyword": "python",
+                "page": 1
+            }
+
+            response = requests.post(url=url, json=json_data, timeout=10)
+            response.raise_for_status()
+
+            result = response.json()
+
+            print(result["json"])
+    抓包定位请求时需要提取
+        url
+        请求方法
+        查询字符串参数
+        请求体数据
+        请求头信息
+        Cookie
+        响应数据格式
+    注意
+        请求参数放在data还是json中，要看接口实际要求
+Cookie，Session与表单提交
+    e.g.
+        import requests
+        # 实例化会话对象
+            session = requests.Session()
+            # 调用requests库的Session类，实例化一个会话对象并赋值给session，捕捉服务器下发的Cookie，在后续请求报头中自动携带鉴权信息
+
+        # 发出Get请求，并提取HTML表单中跨站请求伪造防护令牌(CSPF Token)
+            from bs4 import BeautifulSoup
+            login_url = "http://quotes.toscrape.com/login"
+            response = session.get(login_url)
+            soup = BeautifulSoup(response.text, "html.parser")
+            csrf_token = soup.find("input", {"name": "csrf_token"})["value"]
+        # 构造表单数据负载
+            payload = {
+                "csrf_token": csrf_token,
+                "username": "xxx",
+                "password": "xxxxx"
+            }
+        # 提交表单
+            post_response = session.post(login_url,data = payload)
+        # 验证会话状态
+            if "Logout" in post_response.text:
+                print("success")
+            else:
+                print("fail")
+超时与异常处理
+    timeout
+        timeout用于限制等待时间
+        如果不设置timeout，请求可能长时间卡住
+        timeout可以设置为数字
+            timeout=10
+        timeout也可以设置为元组
+            timeout=(3, 10)
+            第一个值表示连接超时
+            第二个值表示读取超时
+        注意
+            timeout不是完整下载过程的总耗时限制
+            它主要限制连接和读取阶段等待服务器响应的时间
+    常见异常
+        requests.exceptions.Timeout
+            请求超时
+        requests.exceptions.ConnectionError
+            连接失败
+        requests.exceptions.HTTPError
+            response.raise_for_status()检测到错误状态码
+        requests.exceptions.JSONDecodeError
+            response.json()解析失败
+        requests.exceptions.RequestException
+            requests异常的通用父类
+    e.g.
+        import requests
+
+        url = "https://httpbin.org/status/404"
+
+        try:
+            response = requests.get(url=url, timeout=10)
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            print("状态码错误", e)
+        except requests.exceptions.Timeout:
+            print("请求超时")
+        except requests.exceptions.RequestException as e:
+            print("请求失败", e)
+动态加载数据
+    概念
+        页面中看到的数据，不一定来自地址栏url对应的HTML
+        如果HTML源码中没有目标数据，目标数据可能来自浏览器后续发送的接口请求
+        这类通过后续接口请求得到的数据，常称为动态加载数据
+    定位流程
+        打开浏览器开发者工具
+        切换到网络请求面板
+        触发页面加载、搜索、翻页、滚动或点击行为
+        在请求列表中搜索目标数据关键字
+        定位包含目标数据的请求
+        查看请求url、请求方法、参数、请求头和响应内容
+        使用requests模拟该请求
+    重点检查内容
+        请求url
+        请求方法
+        查询字符串参数
+        请求体参数
+        请求头
+        Cookie
+        响应格式
+        分页参数
+        排序参数
+        时间戳或签名参数
+    e.g.
+        import requests
+
+        url = "https://httpbin.org/get"
+
+        params = {
+            "keyword": "python",
+            "page": 1
+        }
+
+        headers = {
+            "User-Agent": "Mozilla/5.0",
+            "Referer": "https://httpbin.org/"
+        }
+
+        response = requests.get(url=url, params=params, headers=headers, timeout=10)
+        response.raise_for_status()
+
+        data = response.json()
+
+        print(data["args"])
+    注意
+        复制浏览器请求时，不要盲目复制所有请求头
+        应先保留必要字段，再根据响应结果逐步调整
+        Referer有些接口需要，有些接口不需要
+        Cookie通常和登录状态、权限、风控有关
+        如果请求中存在签名参数，需要先分析签名生成逻辑
+数据解析
+    HTML文本
+        使用response.text获取文本
+        可以配合正则、BeautifulSoup、lxml等工具提取数据
+    JSON数据
+        使用response.json()转换为Python对象
+        JSON对象通常对应Python字典
+        JSON数组通常对应Python列表
+    二进制数据
+        使用response.content获取字节数据
+        写入文件时使用wb模式
+    注意
+        解析方式取决于响应内容格式
+        不要看到接口地址就直接使用response.json()
+        应先查看响应头和响应内容是否真的是JSON
+图片和文件下载
+    小文件下载
+        使用response.content获取二进制内容
+        写入文件时使用wb模式
+        e.g.
+            import requests
+
+            url = "https://httpbin.org/image/png"
+
+            response = requests.get(url=url, timeout=10)
+            response.raise_for_status()
+
+            img_data = response.content
+
+            with open("httpbin.png", mode="wb") as f:
+                f.write(img_data)
+    大文件下载
+        使用stream=True避免一次性把全部内容读入内存
+        使用iter_content分块写入文件
+        e.g.
+            import requests
+
+            url = "https://httpbin.org/stream-bytes/102400"
+
+            with requests.get(url=url, stream=True, timeout=10) as response:
+                response.raise_for_status()
+
+                with open("data.bin", mode="wb") as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+    注意
+        下载图片或文件时不要使用response.text
+        如果资源需要请求头、Cookie或登录状态，优先使用requests处理
+        文件后缀应根据Content-Type或真实文件格式确定
+        不要把未知来源的下载内容直接当作可信文件执行
+常见易混淆点
+    requests和浏览器
+        requests负责发送请求和接收响应
+        浏览器还会执行JavaScript、解析CSS、构建页面结构并渲染页面
+        requests拿不到JavaScript运行后的页面结构
+    response.text和response.content
+        response.text返回字符串
+        response.content返回字节
+        文本内容用response.text
+        图片、视频、压缩包等内容用response.content
+    response.json()和json模块
+        response.json()用于解析当前响应体
+        json模块用于处理普通JSON字符串或JSON文件
+    状态码和业务状态
+        HTTP状态码表示请求在协议层面的处理结果
+        接口响应体中的业务字段表示业务层面的处理结果
+        两者都需要检查
+    headers和params
+        headers描述请求元信息
+        params是请求参数
+        不要把业务查询参数放到headers中
+    Cookie和Session
+        Cookie是具体的状态数据
+        requests.Session是客户端会话对象
+        Session可以在多次请求之间保持Cookie
+    data和json
+        data通常发送表单格式数据
+        json发送JSON格式数据
+        服务器要求什么格式，就使用什么参数
+    verify=False
+        verify=False会关闭证书校验
+        正常请求不应使用
+        只有明确知道测试环境证书问题时才考虑临时使用
+    乱码处理
+        先查看response.encoding
+        再查看网页源码或响应头中的编码声明
+        确认编码后再设置response.encoding
+        不要所有页面都固定设置为utf-8
+代理使用
+    作用
+        代理用于让请求通过代理服务器转发
+        目标网站看到的是代理服务器的IP
+        requests本身不会自动更换代理
+        需要在请求时通过proxies参数指定代理
+    基本格式
+        proxies是一个字典
+        键写协议类型
+        值写代理地址
+        e.g.
+            proxies = {
+                "http": "http://代理IP:端口",
+                "https": "http://代理IP:端口",
+            }
+    HTTP代理
+        e.g.
+            import requests
+
+            url = "https://httpbin.org/ip"
+
+            proxies = {
+                "http": "http://127.0.0.1:7890",
+                "https": "http://127.0.0.1:7890",
+            }
+
+            response = requests.get(url=url, proxies=proxies, timeout=10)
+            response.raise_for_status()
+
+            print(response.text)
+    带账号密码的代理
+        如果代理服务商提供用户名和密码
+        账号密码写在代理地址中
+        e.g.
+            import requests
+
+            url = "https://httpbin.org/ip"
+
+            proxies = {
+                "http": "http://用户名:密码@代理IP:端口",
+                "https": "http://用户名:密码@代理IP:端口",
+            }
+
+            response = requests.get(url=url, proxies=proxies, timeout=10)
+            response.raise_for_status()
+
+            print(response.text)
+    SOCKS代理
+        requests默认不支持SOCKS代理
+        需要安装requests[socks]
+        命令
+            pip install requests[socks]
+        e.g.
+            import requests
+
+            url = "https://httpbin.org/ip"
+
+            proxies = {
+                "http": "socks5://127.0.0.1:1080",
+                "https": "socks5://127.0.0.1:1080",
+            }
+
+            response = requests.get(url=url, proxies=proxies, timeout=10)
+            response.raise_for_status()
+
+            print(response.text)
+    Session中使用代理
+        如果多次请求都使用同一个代理，可以把代理配置到Session对象中
+        e.g.
+            import requests
+
+            session = requests.Session()
+
+            session.proxies = {
+                "http": "http://127.0.0.1:7890",
+                "https": "http://127.0.0.1:7890",
+            }
+
+            response = session.get(url="https://httpbin.org/ip", timeout=10)
+            response.raise_for_status()
+
+            print(response.text)
+    代理池
+        e.g.
+            import random
+            import requests
+
+            url = "https://httpbin.org/ip"
+
+            proxy_list = [
+                "http://127.0.0.1:7890",
+                "http://127.0.0.1:7891",
+                "http://127.0.0.1:7892",
+            ]
+
+            proxy = random.choice(proxy_list)
+
+            proxies = {
+                "http": proxy,
+                "https": proxy,
+            }
+
+            response = requests.get(url=url, proxies=proxies, timeout=10)
+            response.raise_for_status()
+
+            print(response.text)
+    测试代理是否生效
+        可以请求https://httpbin.org/ip
+        如果返回的origin不是本机公网IP
+        说明请求已经经过代理
+        e.g.
+            import requests
+
+            proxy = "http://127.0.0.1:7890"
+
+            proxies = {
+                "http": proxy,
+                "https": proxy,
+            }
+
+            response = requests.get(
+                url="https://httpbin.org/ip",
+                proxies=proxies,
+                timeout=10,
+            )
+            response.raise_for_status()
+
+            print(response.json())
+    常见异常
+        ProxyError通常表示代理不可用或代理地址写错
+        ConnectTimeout通常表示代理连接超时
+        ReadTimeout通常表示代理连接成功但目标网站响应慢
+        SSLError可能和HTTPS代理转发或证书有关
+        e.g.
+            import requests
+
+            url = "https://httpbin.org/ip"
+
+            proxies = {
+                "http": "http://127.0.0.1:7890",
+                "https": "http://127.0.0.1:7890",
+            }
+
+            try:
+                response = requests.get(url=url, proxies=proxies, timeout=10)
+                response.raise_for_status()
+                print(response.text)
+            except requests.exceptions.ProxyError as e:
+                print(e)
+            except requests.exceptions.Timeout as e:
+                print(e)
+            except requests.exceptions.RequestException as e:
+                print(e)
+    注意
+        代理地址必须包含协议
+        socks5代理地址一般写成socks5://IP:端口
+        https请求不一定要使用https://也可以写成http://(很多HTTP代理也可以转发HTTPS请求)

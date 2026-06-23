@@ -1,0 +1,811 @@
+数据类型
+    数字类型
+        数字类型为不可变类型
+            一个值一个对象，重新赋值不会更改原有对象而是新建一个对象，并且让变量指向这个新对象
+        整数
+            八进制 
+                0o前缀与0-7
+            十六进制
+                0x前缀与0-9,a-f,A-F
+        浮点数
+        科学计数法
+            12.3*10^-3 = 12.3e-3 = 1.23e-2
+        数字类型转换
+            int(x)
+                将x转换为整数，如果x为浮点数则只保留整数部分
+            float(x)
+                将x转换为浮点数
+        操作
+            abs(x)
+                绝对值
+            pow(x, y) / math.pow(x, y)
+                x^y (python中用x**y表示)
+            max(x1, x2, ...)
+                最大值
+            min(x1, x2, ...) 
+                最小值
+            round(x, n)
+                四舍六入整五凑偶保留到n(从1计数，可以为负(0为各位，-1为十位，位数为小数点后一位(x.0)))位小数，round(x)表示四舍五入到个位
+            # 后续需要引入math库(import math)
+            math.ceil(x)
+                向上取整
+            math.floor(x)
+                向下取整
+            math.exp(x)
+                e指数
+            math.fabs(x)
+                绝对值
+            math.log(x, y)
+                以y为底的log x  如 math.log(100, 10) == 2.0
+            math.log(x)
+                ln(x)
+            math.log10(x)
+                lg(x)
+            math.log(x, y)
+                以y为底的log x  如 math.log(100, 10) == 2.0
+            math.modf(x)
+                math.modf(5.3) == (0.2999999999999998, 5.0)
+            math.sqrt(x)
+                平方根
+            math.hypot(x, y)
+                返回欧几里德范数sqrt(x * x + y * y)
+            math.acos(x)
+                返回x的反余弦弧度值
+            math.asin(x)
+                返回x的反正弦弧度值
+            math.atan(x)
+                返回x的反正切弧度值
+            math.atan2(y, x)
+                返回(x, y)的反正切值
+            math.sin(x)
+                返回x弧度的正弦值
+            math.cos(x)
+                返回x弧度的余弦值
+            math.tan(x)
+                返回x弧度的正切值
+            math.degrees(x)
+                将弧度转换为角度
+            math.radians(x)
+                将角度转换为弧度
+    布尔类型
+        True, False
+        True + True + False == 2
+    字符串类型
+        s = "hello yuan"
+        索引取值
+            s[6] == "y"
+            s[-10] == "h"       # 负数表示从右向左从零开始计数
+        切片取值
+            s[1:4] == "ell"
+            s[:4] == "hell"
+            s[1:] == "ello yuan"
+            s[1:-1] == "ello yua"
+            s[-4:-1] == "yua"
+            s[-1:-4] == ""
+            s[1:4:2(步长)] == s[1:5:2] == "el"
+        判断存在
+            "hello" in s == True
+            "world" in s == False
+        运算
+            "hello" + " " + "yuan" == "hello yuan"
+            "1" * 3 == "111"
+        操作
+            encode() 字符串转bytes类型
+                text = "你好"
+                text.encode("utf-8") == b'\xe4\xbd\xa0\xe5\xa5\xbd'   
+            find() 查找子串(位置为首字母位置(从0计数))
+                url = "https://www.baidu.com"
+                url.find("baidu") == 12
+                url.find("google") == -1
+            index() 获取下标(首字母位置(从0计数))
+                url = "https://www.baidu.com"
+                url.index("baidu") == 12
+                url.index("google")  # 报错 ValueError: substring not found
+            replace() 替换子串
+                text = "hello python"
+                text.replace("python", "spider") == "hello spider"
+            len() 返回字符串长度
+                text = "abc123"
+                len(text) == 6
+            lower() 转小写字符
+                text = "User-Agent"
+                text.lower() == "user-agent"
+            upper() 转大写字符
+                text = "token"
+                text.upper() == "TOKEN"
+            split() 分割字符串
+                cookie = "name=admin; age=18; token=abc123"
+                cookie.split("; ") == ["name=admin", "age=18", "token=abc123"]
+            strip() 去除两端指定符号
+                text = "   hello spider   "
+                text.strip() == "hello spider"
+                token = "###token###"
+                token.strip("#") == "token"
+            startswith() 判断字符串是否以xxx开头
+                url = "https://www.baidu.com"
+                url.startswith("https") == True
+            endswith() 判断字符串是否以xxx结尾
+                filename = "data.json"
+                filename.endswith(".json") == True
+        字符编码
+            文本与二进制形式的转换方式
+            ASCII编码
+                早期主要用于英语字符，标准ASCII只有128个字符，不兼容汉字。
+            Unicode编码
+                又称万国码，国际组织制定的可以表示世界上大量文字和符号的编码标准。
+                Unicode本身定义字符编号，具体占用多少字节取决于使用的编码方式。
+            UTF-8编码
+                基于Unicode的一种变长编码方式。
+                英文字符通常占1个字节，常见汉字通常占3个字节，部分字符会占4个字节。
+                UTF-8兼容ASCII编码，所以使用广泛。
+            GB2312
+                我国早期自己制定的中文编码，世界范围内不通用。
+            GBK
+                全称《汉字内码扩展规范》，向下与GB2312兼容，向上支持ISO10646.1国际标准，是前者向后者过渡过程中的一个承上启下的产物。windows中文版的汉字编码用的就是GBK。也非世界范围通用的编码
+    列表类型
+        alist = [1, 12.3, "bobo"]
+        操作
+            访问元素
+                alist[2] == "bobo"
+                alist[0:2] == [1, 12.3]
+                alist[6]  # 报错 IndexError: list index out of range
+            修改元素
+                alist[1] = 100.123
+                alist == [1, 100.123, "bobo"]
+            删除元素
+                alist = [1, 12.3, "bobo"]
+                del alist[0]
+                alist == [12.3, "bobo"]
+                alist.remove("bobo")  # 删除列表中第一个值为"bobo"的元素
+                alist == [12.3]
+                alist = [1, 12.3, "bobo"]
+                alist.pop() == "bobo"  # 默认删除并返回最后一个元素
+                alist == [1, 12.3]
+                alist = [1, 12.3, "bobo"]
+                alist.pop(2) == "bobo"  # 删除并返回下标为2的元素
+                alist == [1, 12.3]
+            切片
+                alist = [1, 12.3, "bobo", "北京"]
+                alist[1:3] == [12.3, "bobo"]
+                切片不会修改原列表，可以用newlist = alist[:]复制列表
+            append(obj) 在列表末尾添加新对象
+                alist = [1, 2, 3]
+                alist.append("bobo")
+                alist == [1, 2, 3, "bobo"]
+            count(obj) 统计某个元素在列表中出现的次数
+                alist = [1, 2, 2, 3]
+                alist.count(2) == 2
+            extend(seq) 在列表末尾一次性追加另一个序列中的多个值
+                alist = [1, 2]
+                alist.extend([3, 4])
+                alist == [1, 2, 3, 4]
+            index(obj) 从列表中找出某个值第一个匹配项的索引位置
+                alist = ["a", "b", "c"]
+                alist.index("b") == 1
+            insert(index, obj) 将对象插入列表
+                alist = [1, 2, 3]
+                alist.insert(1, 999)
+                alist == [1, 999, 2, 3]
+            pop(index=-1) 移除列表中的一个元素并返回该元素的值，默认删除最后一个元素
+                alist = [1, 2, 3]
+                alist.pop() == 3
+                alist == [1, 2]
+            remove(obj) 移除列表中某个值的第一个匹配项
+                alist = ["a", "b", "a"]
+                alist.remove("a")
+                alist == ["b", "a"]
+            reverse() 反向列表中元素
+                alist = [1, 2, 3]
+                alist.reverse()
+                alist == [3, 2, 1]
+            sort([function](可省略)) 对原列表进行排序
+                alist = [3, 8, 5, 7, 6, 2, 1]
+                alist.sort()
+                alist == [1, 2, 3, 5, 6, 7, 8]
+            copy() 复制列表
+                alist = [1, 2, 3]
+                new_list = alist.copy()
+                new_list == [1, 2, 3]
+            clear() 清空列表，等于del alist[:]
+                alist = [1, 2, 3]
+                alist.clear()
+                alist == []
+        字符串和列表转换
+            alist = ["bobo", "18", "99.5", "北京"]
+            "-".join(alist) == "bobo-18-99.5-北京"
+            s = "hello-name-bobo-age"
+            s.split("-") == ["hello", "name", "bobo", "age"]
+    元组类型
+        元组是不可变序列
+        操作(与列表相同)
+            t = (1, 2, 3, 4, "你好")
+            t[1] == 2
+            t[1:4] == (2, 3, 4)
+            t.count(2) == 1
+            t.index(3) == 2
+            len(t) == 5
+            max(t) == 5
+            min(t) == 1
+        元组不支持的操作
+            t[0] = 100  # 报错 TypeError: 'tuple' object does not support item assignment
+            t.append(6)  # 报错 AttributeError: 'tuple' object has no attribute 'append'
+            t.remove(1)  # 报错 AttributeError: 'tuple' object has no attribute 'remove'
+            t.pop()  # 报错 AttributeError: 'tuple' object has no attribute 'pop'
+        使用场景
+            数据创建后不允许修改时，适合使用元组
+            ip_port = ("192.168.1.1", 8080)
+            ip_port[0] == "192.168.1.1"
+            ip_port[1] == 8080
+    字典类型
+        实现机制
+            字典基于哈希散列算法实现
+            字典用键值对保存数据
+            形式是key:value
+            字典根据key计算value的地址，所以查询和插入速度很快
+        字典特性
+            value可以是任意数据类型
+            key必须是不可变对象
+            常见key类型有整数、字符串、bytes、元组
+            列表、字典、集合不能作为key
+            同一个字典内key必须唯一，value可以重复
+            Python3.6的CPython实现开始保持插入顺序，Python3.7起成为语言规范
+        操作
+            访问
+                d = {"name": "bobo", "age": 20, "scores": [100, 120, 99]}
+                d["name"] == "bobo"
+                d["scores"] == [100, 120, 99]
+                d.get("name") == "bobo"
+                d["address"]  报错 KeyError: 'address'
+                d.get("address") == None
+                d.keys()  返回字典中所有key
+                    print(d.keys())     # dict_keys(['name', 'age', 'scores'])
+                    print(list(d.keys()))       # ['name', 'age', 'scores']
+                d.values()  返回字典中所有value
+                    print(d.values())		# dict_values(['bobo', 20, [100, 120, 99]])
+                    print(list(d.values()))		# ['bobo', 20, [100, 120, 99]]
+                d.items()  返回字典中所有键值对
+                    print(d.items())		# dict_items([('name', 'bobo'), ('age', 20), ('scores', [100, 120, 99])])
+                    print(list(d.items()))		# [('name', 'bobo'), ('age', 20), ('scores', [100, 120, 99])]
+            添加和修改
+                d = {"name": "bobo", "age": 20, "scores": [100, 120, 99]}
+                d["name"] = "jay"
+                d["name"] == "jay"
+                d["address"] = "Beijing"
+                d["address"] == "Beijing"
+            删除元素
+                d = {"name": "bobo", "age": 20, "scores": [100, 120, 99]}
+                del d["age"]
+                d == {"name": "bobo", "scores": [100, 120, 99]}
+            清空字典
+                d = {"name": "bobo", "age": 20}
+                d.clear()
+                d == {}
+            删除整个字典
+                d = {"name": "bobo", "age": 20}
+                del d
+                d  # 报错 NameError: name 'd' is not defined
+    集合类型
+        无序且不重复元素的容器，核心作用为去重(对已经爬取过的网址标记以防死循环)
+        操作
+            创建
+                s = {1, 2, 3, "bobo", 99.9, 1, 2, 3}
+                s == {1, 2, 3, "bobo", 99.9}
+                set()为空集合
+            添加
+                s = {1, 2, 3}
+                s.add(4)
+                s == {1, 2, 3, 4}
+                s.add(4)
+                s == {1, 2, 3, 4}
+                s.update([5, 6, 7])
+                s == {1, 2, 3, 4, 5, 6, 7}
+            删除
+                s = {1, 2, 3}
+                s.remove(2)     # 元素不存在会报错
+                s == {1, 3}
+                s.discard(100)      # 元素不存在不会报错
+                s == {1, 3}
+                s.pop()     # 任意删除并返回一个元素
+                s.clear()
+                s == set()
+            查询
+                s = {"https://a.com", "https://b.com"}
+                "https://a.com" in s == True
+                "https://c.com" not in s == True
+                len(s) == 2
+            集合运算
+                a = {1, 2, 3}
+                b = {3, 4, 5}
+                a & b == {3}
+                a | b == {1, 2, 3, 4, 5}
+                a - b == {1, 2}
+                a ^ b == {1, 2, 4, 5}
+            与列表类型转换
+                nums = [1, 2, 2, 3, 3, 3]
+                set(nums) == {1, 2, 3}
+                sorted(set(nums)) == [1, 2, 3]
+                # list(set(nums))可以转成列表，但元素顺序不固定
+        注意
+            空集合必须用set()创建
+            {}创建的是空字典，不是空集合
+            集合不支持下标索引(index)
+            集合不支持通过key取值
+    转换
+        基础类型转换
+            数字与字符串
+                int("10") == 10
+                float("3.14") == 3.14
+                str(10) == "10"
+            布尔值转换
+                bool(0) == False
+                bool(1) == True
+                bool("") == False
+                bool("abc") == True
+            列表、元组、集合转换
+                nums = [1, 2, 2, 3]
+                tuple(nums) == (1, 2, 2, 3)
+                set(nums) == {1, 2, 3}
+                list((1, 2, 3)) == [1, 2, 3]
+                # list({1, 2, 3})可以把集合转成列表，但元素顺序不固定
+            字符串与列表转换
+                s = "a,b,c"
+                s.split(",") == ["a", "b", "c"]
+                ",".join(["a", "b", "c"]) == "a,b,c"
+            字典与列表转换
+                d = {"name": "yuan", "age": 18}
+                list(d) == ["name", "age"]
+                list(d.keys()) == ["name", "age"]
+                list(d.values()) == ["yuan", 18]
+                list(d.items()) == [("name", "yuan"), ("age", 18)]
+                dict([("name", "yuan"), ("age", 18)]) == {"name": "yuan", "age": 18}
+        json转换
+            库
+                json
+            json字符串转列表
+                import json
+                s = '[1, 2, 3]'
+                json.loads(s) == [1, 2, 3]
+            列表转json字符串
+                import json
+                nums = [1, 2, 3]
+                json.dumps(nums) == "[1, 2, 3]"
+            json字符串转字典
+                import json
+                s = '{"name": "yuan", "age": 18}'
+                json.loads(s) == {"name": "yuan", "age": 18}
+            字典转json字符串
+                import json
+                d = {"name": "yuan", "age": 18}
+                json.dumps(d, ensure_ascii=False) == '{"name": "yuan", "age": 18}'
+            json文件读取
+                import json
+                with open("data.json", "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            json文件写入
+                import json
+                data = {"name": "yuan", "age": 18}
+                with open("data.json", "w", encoding="utf-8") as f:
+                    json.dump(data, f, ensure_ascii=False, indent=4)
+            注意
+                loads/dumps处理json字符串
+                load/dump处理json文件对象
+打断循环
+    break
+        退出当前循环，不能直接退出多层循环
+    continue
+        结束当次循环，开始下一次新的循环
+函数
+    def power(x, n=2):  # 默认参数必须在最后面
+        return x ** n
+
+    power(2) == 4
+    power(2, 3) == 8
+    power(2, n=3) == 8
+类
+    概念
+        类用于描述一类对象共有的数据和行为
+        类本身是定义，对象是根据类创建出来的具体数据
+        一个类可以创建多个对象，每个对象可以保存自己的数据
+    对象
+        创建对象也叫实例化
+        stu = Student()会创建一个Student对象，并让变量stu指向这个对象
+        同一个类创建的不同对象默认互不相同
+        e.g.
+            class Student:
+                pass        # py中类里不能为空，若无代码块，可以使用pass占位
+
+            stu1 = Student()
+            stu2 = Student()
+
+            stu1 == stu2  # False
+    属性
+        概念
+            属性是对象或类中保存的数据
+            实例属性属于对象本身
+            类属性属于类本身，所有对象都可以访问
+        实例属性
+            class Student:
+                pass
+
+            stu = Student()
+            stu.name = "yuan"
+            stu.age = 18
+
+            stu.name == "yuan"
+            stu.age == 18
+        类属性
+            class Student:
+                school = "一中"
+
+            stu1 = Student()
+            stu2 = Student()
+
+            Student.school == "一中"
+            stu1.school == "一中"
+            stu2.school == "一中"
+        易混淆点
+            通过对象读取属性时，会先找对象自己的实例属性，找不到再找类属性
+            通过对象给同名属性赋值时，通常会给对象新增或修改实例属性，不会直接修改类属性
+            修改类属性应通过类名修改
+        e.g.
+            class Student:
+                school = "一中"
+
+            stu1 = Student()
+            stu2 = Student()
+
+            stu1.school = "二中"
+
+            stu1.school == "二中"
+            stu2.school == "一中"
+            Student.school == "一中"
+
+            Student.school = "三中"
+
+            stu1.school == "二中"
+            stu2.school == "三中"
+            Student.school == "三中"
+    __init__方法
+        作用
+            创建对象后自动调用
+            常用于给对象初始化实例属性
+        注意
+            __init__方法必须返回None，不能返回其他值
+            self表示当前对象本身，方法内部访问当前对象属性时要写self
+        e.g.
+            class Student:
+                def __init__(self, name, age):
+                    self.name = name
+                    self.age = age
+
+            stu = Student("yuan", 18)
+
+            stu.name == "yuan"
+            stu.age == 18
+    实例方法
+        概念
+            写在类里面，并且第一个参数通常是self的方法，叫实例方法
+            实例方法通常由对象调用
+            对象调用实例方法时，Python会自动把当前对象传给self
+        e.g.
+            class Student:
+                def __init__(self, name):
+                    self.name = name
+
+                def say_name(self):
+                    print(self.name)
+
+            stu = Student("yuan")
+            stu.say_name()
+        易混淆点
+            定义实例方法时要写self
+            调用实例方法时不需要手动传self
+            self不是关键字，但通常固定写成self
+    类方法
+        写法
+            使用@classmethod装饰
+            第一个参数通常写成cls
+            cls表示当前类本身
+        使用场景
+            需要访问或修改类属性时
+            需要根据类创建对象时
+        e.g.
+            class Student:
+                school = "一中"
+
+                @classmethod
+                def change_school(cls, school):
+                    cls.school = school
+
+            Student.change_school("二中")
+
+            Student.school == "二中"
+    静态方法
+        写法
+            使用@staticmethod装饰
+            不自动接收self或cls
+        使用场景
+            方法逻辑和类有关，但不需要访问实例属性，也不需要访问类属性
+        e.g.
+            class Calc:
+                @staticmethod
+                def add(x, y):
+                    return x + y
+
+            Calc.add(1, 2) == 3
+    属性方法
+        作用
+            把无参数方法伪装成属性访问
+            常用于读取需要计算得到的属性
+        e.g.
+            class Rectangle:
+                def __init__(self, width, height):
+                    self.width = width
+                    self.height = height
+
+                @property
+                def area(self):
+                    return self.width * self.height
+
+            rect = Rectangle(3, 4)
+
+            rect.area == 12
+        注意
+            使用@property后，调用时写rect.area，不写rect.area()
+            如果没有定义对应的setter，不能直接给这个属性赋值
+    各类方法对比
+        实例方法
+            第一个参数是self
+            依赖具体对象，能访问和修改实例属性，最常用，表示对象自己的行为
+        类方法
+            使用@classmethod
+            第一个参数是cls
+            依赖类本身，常用于访问类属性，修改类状态，定义和类相关的构造逻辑
+        静态方法
+            使用@staticmethod
+            不自动接收self或cls
+            不依赖具体对象，也不依赖类本身，本质是放在类命名空间里的普通函数
+        属性方法
+            使用@property
+            本质是实例方法
+            调用时像属性一样访问，不加括号，常用于把计算结果，校验逻辑，受控读取伪装成属性
+    封装
+        概念
+            把数据和操作数据的方法放在类内部统一管理
+            外部代码通过对象的方法使用数据，减少直接修改内部状态造成的问题
+        下划线命名
+            _name表示约定内部使用，外部仍然可以访问
+            __name会触发名称改写，外部不能直接用对象.__name访问
+        注意
+            双下划线不是绝对安全限制，只是避免外部直接访问和避免子类同名覆盖
+        e.g.
+            class Account:
+                def __init__(self, balance):
+                    self.__balance = balance
+
+                def get_balance(self):
+                    return self.__balance
+
+                def deposit(self, money):
+                    if money <= 0:
+                        return
+                    self.__balance += money
+
+            account = Account(100)
+            account.deposit(50)
+
+            account.get_balance() == 150
+            account.__balance  # 报错 AttributeError: 'Account' object has no attribute '__balance'
+    继承
+        概念
+            子类可以继承父类已有的属性和方法
+            子类可以新增自己的方法，也可以重写父类方法
+            继承适合表达明确的上下级关系
+        方法重写
+            子类定义了和父类同名的方法时，对象会优先调用子类的方法
+            e.g.
+                class Animal:
+                    def __init__(self, name):
+                        self.name = name
+
+                    def speak(self):
+                        print(self.name + "叫")		# 旺财叫
+
+                class Dog(Animal):
+                    def __init__(self, name, age):
+                        super().__init__(name)      # 对Animal进行初始化(运行__init__)
+                        self.age = age
+
+                    def speak(self):
+                        print(self.name + "是" + str(self.age) + "岁的狗")		# 旺财是3岁的狗
+
+                dog = Dog("旺财", 3)
+                dog.speak()     # 旺财是3岁的狗
+        super()
+            用于在子类中调用父类方法
+            常用于子类扩展父类__init__方法
+            e.g.
+                class Person:
+                    def __init__(self, name):
+                        self.name = name
+
+                class Student(Person):
+                    def __init__(self, name, score):
+                        super().__init__(name)
+                        self.score = score
+
+                stu = Student("yuan", 99)
+
+                stu.name == "yuan"
+                stu.score == 99
+        多继承
+            概念
+                一个类可以同时继承多个父类，多继承适合把多个独立能力组合到一个类中
+                写法为class 子类(父类1, 父类2, ...):
+            方法查找顺序
+                当多个父类有同名属性或方法时，Python会按照MRO顺序查找
+                MRO是Method Resolution Order，表示方法解析顺序
+                方法查找顺序可以通过类名.__mro__查看
+                一般会先查找子类本身，再按照继承列表从左到右查找父类
+            super()
+                多继承中super()不是固定调用某一个父类，而是调用MRO中的下一个类
+                多个父类都需要初始化时，父类之间需要配合使用super()
+            e.g.
+                class FlyMixin:
+                    def move(self):
+                        return "fly"
+
+                class SwimMixin:
+                    def move(self):
+                        return "swim"
+
+                class Duck(FlyMixin, SwimMixin):
+                    pass
+
+                duck = Duck()
+
+                duck.move() == "fly"
+                Duck.__mro__ == (Duck, FlyMixin, SwimMixin, object)
+    多态
+        概念
+            不同类的对象只要提供同名方法，就可以用同一种调用方式处理
+            Python更关注对象能不能完成某个操作，而不是对象一定属于哪个类
+        e.g.
+            class CsvSaver:
+                def save(self, data):
+                    print("保存csv:", data)
+
+            class JsonSaver:
+                def save(self, data):
+                    print("保存json:", data)
+
+            def save_data(saver, data):
+                saver.save(data)
+
+            save_data(CsvSaver(), "用户数据")       # 保存csv: 用户数据
+            save_data(JsonSaver(), "用户数据")      # 保存json: 用户数据
+    常用内置函数
+        type(obj)
+            查看对象所属的类
+            type(10) == int
+        isinstance(obj, cls)
+            判断对象是否是某个类或其子类的对象
+            isinstance(True, bool) == True
+            isinstance(True, int) == True       # bool是int的子类
+        issubclass(cls1, cls2)
+            判断cls1是否是cls2的子类
+            issubclass(bool, int) == True
+        hasattr(obj, name)
+            判断对象是否有指定属性或方法
+            hasattr("abc", "upper") == True
+        getattr(obj, name)
+            获取对象属性或方法
+            getattr("abc", "upper")() == "ABC"
+        getattr(obj, name, default)
+            属性不存在时返回默认值
+            getattr("abc", "age", None) == None
+        setattr(obj, name, value)
+            设置对象属性
+            class Student:
+                pass
+
+            stu = Student()
+            setattr(stu, "name", "yuan")
+            stu.name == "yuan"
+        delattr(obj, name)
+            删除对象属性
+            class Student:
+                pass
+
+            stu = Student()
+            stu.name = "yuan"
+            delattr(stu, "name")
+            hasattr(stu, "name") == False
+	        dir(obj)
+	            查看对象可用的属性和方法名，返回列表
+	            ("upper" in dir("abc")) == True
+	            ("append" in dir([])) == True
+	        vars(obj)
+            查看对象自己的属性字典
+            class Student:
+                def __init__(self, name):
+                    self.name = name
+
+            stu = Student("yuan")
+            vars(stu) == {"name": "yuan"}
+        callable(obj)
+            判断对象是否可以被调用
+            callable(print) == True
+            callable(123) == False
+    特殊方法
+        __str__
+            使用print(obj)或str(obj)时自动调用
+            返回值必须是字符串
+            e.g.
+                class Student:
+                    def __init__(self, name, age):
+                        self.name = name
+                        self.age = age
+
+                    def __str__(self):
+                        return f"{self.name}-{self.age}"
+
+                stu = Student("yuan", 18)
+
+                print(stu)		# yuan-18
+        __repr__
+            在交互环境查看对象或使用repr(obj)时调用
+            主要用于给开发者查看对象信息
+        __eq__
+            使用==比较对象时调用
+            如果不定义__eq__，普通对象默认比较是否为同一个对象
+            e.g.
+                class Student:
+                    def __init__(self, student_id, name):
+                        self.student_id = student_id
+                        self.name = name
+
+                    def __eq__(self, other):
+                        if not isinstance(other, Student):
+                            return False
+                        return self.student_id == other.student_id
+
+                stu1 = Student(1001, "yuan")
+                stu2 = Student(1001, "tom")
+                stu3 = Student(1002, "yuan")
+
+                print(stu1 == stu2)		# True
+                print(stu1 == stu3)		# False
+                print(stu1 == "1001")		# False
+    可变类属性注意
+        不要把列表、字典这类可变数据直接作为需要每个对象独立拥有的类属性
+        e.g.
+            错误写法
+                class BadStudent:
+                    books = []
+
+                stu1 = BadStudent()
+                stu2 = BadStudent()
+
+                stu1.books.append("Python")
+
+                stu2.books == ["Python"]
+            正确写法
+                class Student:
+                    def __init__(self):
+                        self.books = []
+
+                stu1 = Student()
+                stu2 = Student()
+
+                stu1.books.append("Python")
+
+                stu1.books == ["Python"]
+                stu2.books == []
+    对象属性查找顺序
+        读取obj.name时，通常先找对象自己的属性，再找类属性，再沿继承关系查找父类属性
+        对象自己的属性可以通过vars(obj)查看
+        类的继承查找顺序可以通过类名.__mro__查看
+    类和字典的选择
+        数据字段固定，并且这些数据有配套行为时，可以考虑使用类
+        只是临时保存简单键值对时，字典更直接

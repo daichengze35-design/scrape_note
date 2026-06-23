@@ -1,0 +1,631 @@
+xpath
+    概念
+        xpath是一种在HTML或XML树结构中定位节点的表达式
+        在爬虫中常用于定位标签、提取文本和提取属性值
+    导入
+        from lxml import etree
+    解析入口
+        etree.HTML(html_text)
+            用于解析HTML字符串
+            常用于requests获取到的网页源码
+            HTML容错能力较强，标签不完整时也可能解析成功
+        etree.parse(file_path)
+            用于解析本地文件
+            常用于学习xpath语法或解析本地保存的HTML/XML文件
+        etree.fromstring(text)
+            用于解析字符串
+            XML解析时更常见
+    基础流程
+        获取HTML字符串
+        创建etree对象
+        调用xpath()方法
+        根据返回结果提取数据
+    e.g.
+        from lxml import etree
+
+        html = """
+        <html>
+            <body>
+                <div class="book">
+                    <h2>Python爬虫入门</h2>
+                    <a href="/detail/1">查看详情</a>
+                </div>
+            </body>
+        </html>
+        """
+
+        tree = etree.HTML(html)
+
+        title_list = tree.xpath("//div[@class='book']/h2/text()")
+        href_list = tree.xpath("//div[@class='book']/a/@href")
+
+        print(title_list)		# ['Python爬虫入门']
+        print(href_list)		# ['/detail/1']
+xpath基本语法
+    /
+        从当前节点的直接子节点中继续查找
+        如果表达式开头就是/，通常表示从根节点开始查找
+    //
+        从当前节点的所有后代节点中查找
+        如果表达式开头就是//，通常表示从整棵树中查找
+    .
+        表示当前节点
+        在循环中做局部解析时常用
+    @
+        表示属性
+        @href表示href属性
+        @src表示src属性
+    text()
+        获取当前节点的直接文本
+        不会获取子标签内部的文本
+    //text()
+        获取当前节点下所有后代文本
+        会把多个文本片段放入列表
+    []
+        用于添加条件或按位置取节点
+    *
+        任意
+    索引
+        xpath里的位置从1开始
+        Python列表索引从0开始
+        //li[1]表示第一个li节点
+        result[0]表示Python列表中的第一个元素
+标签定位
+    定位所有div
+        //div
+    定位class等于book的div
+        //div[@class='book']
+    定位book区域里的所有a标签
+        //div[@class='book']//a
+    定位book区域里的直接子级a标签
+        //div[@class='book']/a
+    定位第一个li
+        //li[1]
+    定位最后一个li
+        //li[last()]
+    定位包含指定class的标签
+        //div[contains(concat(' ', normalize-space(@class), ' '), ' book ')]
+    定位属性值
+        //*[@*="xxx"]
+    定位包含某文本的标签
+        //*[normalize-space(text())='目标文本']
+        //*[normalize-space(.)='目标文本']      # 文本包含空格/换行
+        //*[contains(normalize-space(.), '目标文本')]       # 模糊匹配
+    父标签
+        parent::* or ..
+        div标签的父标签 /parent::div
+    注意
+        @class='book'只适合class属性值完全等于book的情况
+        如果class中有多个类名，应使用contains配合normalize-space
+        不要长期依赖浏览器复制出的绝对xpath，页面结构稍有变化就容易失效
+数据提取
+    提取文本
+        //h2/text()
+    提取某个区域下所有文本
+        //div[@id='content']//text()
+    提取属性
+        //a/@href
+        //img/@src
+    提取节点对象
+        //div[@class='item']
+    将多个文本片段合并
+        text = "".join(text_list).strip()
+    清理空白文本
+        text_list = [i.strip() for i in text_list if i.strip()]
+    注意
+        xpath()返回结果通常是列表
+        没有匹配结果时返回空列表
+        直接使用result[0]可能因为列表为空导致IndexError
+        如果字段可能不存在，应先判断列表是否为空
+    e.g.
+        from lxml import etree
+
+        html = """
+        <div id="content">
+            第一段
+            <p>第二段</p>
+            <p>第三段</p>
+        </div>
+        """
+
+        tree = etree.HTML(html)
+
+        direct_text = tree.xpath("//div[@id='content']/text()")
+        all_text = tree.xpath("//div[@id='content']//text()")
+
+        all_text = [i.strip() for i in all_text if i.strip()]
+        content = "\n".join(all_text)
+
+        print(direct_text)		# ['\n    第一段\n    ', '\n    ', '\n']
+        print(content)
+局部解析
+    概念
+        先定位一组父节点
+        再在每个父节点内部继续提取字段
+        适合列表页中的重复数据块
+    写法
+        父节点.xpath("./子节点表达式")
+    注意
+        ./表示从当前父节点内部开始找
+        如果在循环中继续写//a，可能会从整棵树或当前节点所有后代中找，容易拿到不属于当前数据块的内容
+    e.g.
+        from lxml import etree
+        from urllib.parse import urljoin
+
+        html = """
+        <div class="list">
+            <div class="item">
+                <a href="/detail/1">第一章</a>
+            </div>
+            <div class="item">
+                <a href="/detail/2">第二章</a>
+            </div>
+        </div>
+        """
+
+        base_url = "https://example.com/books/"
+        tree = etree.HTML(html)
+        item_list = tree.xpath("//div[@class='item']")
+
+        for item in item_list:
+            title_list = item.xpath("./a/text()")
+            href_list = item.xpath("./a/@href")
+
+            if not title_list or not href_list:
+                continue
+
+            title = title_list[0].strip()
+            detail_url = urljoin(base_url, href_list[0])
+
+            print(title, detail_url)
+相对地址处理
+    概念
+        页面中解析出的href或src可能不是完整地址
+        常见形式有/detail/1、../img/a.jpg、img/a.jpg
+        请求这些地址前需要转成完整地址
+    推荐写法
+        from urllib.parse import urljoin
+        full_url = urljoin(base_url, href)
+    注意
+        不要直接用字符串拼接处理所有url
+        字符串拼接容易出现多斜杠、少斜杠、路径层级错误等问题
+        base_url应使用当前页面url或站点根地址，具体看相对地址的写法
+编码问题
+    response.text
+        requests会根据响应头推断编码
+        推断错误时中文可能乱码
+    response.encoding
+        可以手动指定response.text使用的编码
+    response.apparent_encoding
+        requests根据内容推断出的可能编码
+        只能作为参考，不能保证一定正确
+    处理流程
+        先查看响应头中的Content-Type
+        再查看HTML中的meta charset
+        必要时查看网站实际编码
+        确认后再设置response.encoding
+    注意
+        不要所有网页都固定设置为utf-8
+        有些中文老站仍可能使用gbk
+文件名处理
+    问题
+        解析出的标题可能包含文件系统不允许的字符
+        Windows文件名不能包含\ / : * ? " < > |
+    处理
+        保存文件前应清理文件名
+    e.g.
+        def clean_filename(name):
+            for char in '\\/:*?"<>|':
+                name = name.replace(char, "_")
+            return name.strip()
+HTML解析示例
+    e.g.
+        import requests
+        from lxml import etree
+        from urllib.parse import urljoin
+
+        headers = {
+            "User-Agent": "Mozilla/5.0"
+        }
+
+        list_url = "https://example.com/books/"
+
+        response = requests.get(url=list_url, headers=headers, timeout=10)
+        response.raise_for_status()
+        response.encoding = response.apparent_encoding
+
+        tree = etree.HTML(response.text)
+        item_list = tree.xpath("//div[@class='chapter']")
+
+        with open("chapters.txt", mode="w", encoding="utf-8") as f:
+            for item in item_list:
+                title_list = item.xpath("./a/text()")
+                href_list = item.xpath("./a/@href")
+
+                if not title_list or not href_list:
+                    continue
+
+                title = title_list[0].strip()
+                detail_url = urljoin(list_url, href_list[0])
+
+                detail_response = requests.get(url=detail_url, headers=headers, timeout=10)
+                detail_response.raise_for_status()
+                detail_response.encoding = detail_response.apparent_encoding
+
+                detail_tree = etree.HTML(detail_response.text)
+                content_list = detail_tree.xpath("//div[@id='content']//text()")
+                content_list = [i.strip() for i in content_list if i.strip()]
+                content = "\n".join(content_list)
+
+                f.write(title + "\n")
+                f.write(content + "\n\n")
+图片下载
+    注意
+        图片数据不能用response.text保存
+        图片地址可能是相对地址，需要使用urljoin处理
+        保存图片前应确认目录存在
+        文件名应清理非法字符
+        图片后缀最好根据真实地址、Content-Type或文件内容判断
+        使用wb模式写入文件，response.content获取图片字节
+    e.g.
+        import os
+        import requests
+        from lxml import etree
+        from urllib.parse import urljoin
+
+        def clean_filename(name):
+            for char in '\\/:*?"<>|':
+                name = name.replace(char, "_")
+            return name.strip()
+
+        headers = {
+            "User-Agent": "Mozilla/5.0"
+        }
+
+        page_url = "https://example.com/images/"
+        os.makedirs("imgs", exist_ok=True)
+
+        response = requests.get(url=page_url, headers=headers, timeout=10)
+        response.raise_for_status()
+
+        tree = etree.HTML(response.text)
+        img_list = tree.xpath("//img")
+
+        for index, img in enumerate(img_list, start=1):
+            src_list = img.xpath("./@src")
+            alt_list = img.xpath("./@alt")
+
+            if not src_list:
+                continue
+
+            img_url = urljoin(page_url, src_list[0])
+            title = alt_list[0].strip() if alt_list else str(index)
+            title = clean_filename(title) or str(index)
+
+            img_response = requests.get(url=img_url, headers=headers, timeout=10)
+            img_response.raise_for_status()
+
+            file_path = os.path.join("imgs", title + ".jpg")
+            with open(file_path, mode="wb") as f:
+                f.write(img_response.content)
+文件下载
+    注意
+        下载地址不一定在列表页中，有些下载按钮只是跳转到详情页，真实文件地址在详情页或接口响应中
+        压缩包、文档、图片都应按二进制(wb)保存
+        大文件应使用stream=True分块写入
+    e.g.
+        import requests
+
+        url = "https://example.com/file.zip"
+
+        with requests.get(url=url, stream=True, timeout=20) as response:
+            response.raise_for_status()
+
+            with open("file.zip", mode="wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+防盗链
+    表现
+        直接访问资源地址返回403
+        下载下来的图片无法正常打开
+        返回的是提示页内容而不是真实图片
+        浏览器中能显示，requests直接请求失败
+    处理流程
+        在浏览器网络请求面板中找到真实资源请求
+        查看该请求携带的请求头、Referer、Cookie或其他字段
+    e.g.
+        import requests
+
+        headers = {
+            "User-Agent": "Mozilla/5.0",
+            "Referer": "https://example.com/page/"
+        }
+
+        img_url = "https://example.com/static/a.jpg"
+
+        response = requests.get(url=img_url, headers=headers, timeout=10)
+        response.raise_for_status()
+
+        with open("a.jpg", mode="wb") as f:
+            f.write(response.content)
+图片懒加载
+    注意
+        如果接口返回JSON，就直接解析JSON
+        不要把接口返回的JSON先转成字符串再用xpath解析
+        如果接口参数包含签名、时间戳或加密字段，需要先分析字段生成逻辑
+JSON解析
+    response.json()
+        将JSON响应体转换为Python对象
+        JSON对象通常转换为字典
+        JSON数组通常转换为列表
+    e.g.
+        import requests
+
+        url = "https://httpbin.org/json"
+
+        response = requests.get(url=url, timeout=10)
+        response.raise_for_status()
+
+        data = response.json()
+
+        print(type(data))
+        print(data)
+正则解析
+    注意
+        HTML是树结构，优先使用xpath或BeautifulSoup，不建议用复杂正则解析整张HTML，正则表达式过长时可读性和稳定性都会变差
+    e.g.
+        import re
+
+        text = "商品价格：￥129.00，库存：56"
+
+        price_list = re.findall(r"￥(\d+\.\d+)", text)
+        stock_list = re.findall(r"库存：(\d+)", text)
+
+        print(price_list)		# ['129.00']
+        print(stock_list)		# ['56']
+常见易混淆点
+    xpath和Python索引
+        xpath位置从1开始
+        Python列表索引从0开始
+    /text()和//text()
+        /text()只取当前标签的直接文本
+        //text()取当前标签所有后代文本
+        例子:
+            from lxml import etree
+
+            html = """
+            <div class="box">
+                商品
+                <span>价格</span>
+                <em>129元</em>
+            </div>
+            """
+
+            tree = etree.HTML(html)
+
+            print(tree.xpath("//div[@class='box']/text()"))		# ['\n    商品\n    ', '\n    ', '\n']
+            print(tree.xpath("//div[@class='box']//text()"))		# ['\n    商品\n    ', '价格', '\n    ', '129元', '\n']
+    @class='xxx'和contains
+        @class='xxx'要求class属性完全一致
+        contains更适合处理多个class类名
+    etree.HTML和etree.parse
+        etree.HTML用于解析HTML字符串
+        etree.parse用于解析本地文件
+    绝对xpath和相对xpath
+        绝对xpath从根节点开始，路径长且容易受页面结构变化影响
+        相对xpath结合稳定属性更适合爬虫维护
+    HTML源码和元素面板
+        HTML源码是服务器响应内容
+        元素面板可能是浏览器执行JavaScript后生成的结构
+        requests拿到的是响应内容，不是元素面板最终结构
+    src和自定义图片属性
+        普通图片地址常在src中
+        懒加载图片真实地址可能在data-src、data-original等属性中
+    href和完整url
+        href可能是相对地址
+        请求前应使用urljoin转换
+    文本保存和二进制保存
+        文本使用w模式并指定encoding
+        图片、视频、压缩包使用wb模式
+    解析失败
+        先检查响应状态码
+        再检查响应内容是否是目标页面
+        再检查目标数据是否存在于响应源码中
+        最后检查xpath表达式是否写错
+    xpath返回值类型
+        xpath()返回结果通常是列表
+        提取文本或属性时，列表中的元素通常是字符串
+        提取标签节点时，列表中的元素通常是节点对象
+        e.g.
+            from lxml import etree
+
+            html = """
+            <div class="item">
+                <h2>第一章</h2>
+                <a href="/detail/1">详情</a>
+            </div>
+            """
+
+            tree = etree.HTML(html)
+
+            title_list = tree.xpath("//h2/text()")
+            div_list = tree.xpath("//div[@class='item']")
+
+            print(title_list)		# ['第一章']      # ["第一章"]
+            print(type(title_list[0]))		# <class 'lxml.etree._ElementUnicodeResult'>      # <class 'lxml.etree._ElementUnicodeResult'>
+            print(type(div_list[0]))		# <class 'lxml.etree._Element'>        # <class 'lxml.etree._Element'>
+    ./和.//以及//在局部解析中的区别
+        ./表示从当前节点的直接子节点中查找
+        .//表示从当前节点的所有后代节点中查找
+        //通常表示从整棵文档中查找
+        循环解析每个item时，优先使用./或.//限制查找范围
+        e.g.
+            from lxml import etree
+
+            html = """
+            <div class="item">
+                <p><a href="/a">第一条</a></p>
+            </div>
+            <div class="item">
+                <p><a href="/b">第二条</a></p>
+            </div>
+            """
+
+            tree = etree.HTML(html)
+            item_list = tree.xpath("//div[@class='item']")
+
+            for item in item_list:
+                title_list = item.xpath(".//a/text()")
+                print(title_list[0])
+    text()和string()
+        text()获取当前节点的直接文本片段，结果通常是列表
+        string()把指定节点下的文本合并成一个字符串
+        标签内部夹着子标签时，string()更容易得到完整文本
+        e.g.
+            from lxml import etree
+
+            html = """
+            <div class="price">价格<span>99</span>元</div>
+            """
+
+            tree = etree.HTML(html)
+
+            print(tree.xpath("//div[@class='price']//text()"))		# ['价格', '99', '元']
+            print(tree.xpath("string(//div[@class='price'])"))		# 价格99元
+    strip()和normalize-space()
+        strip()会去除首尾空白
+        normalize-space()会去除首尾空白，并把中间连续空白压缩成一个空格
+        e.g.
+            from lxml import etree
+
+            html = "<h2>  Python   爬虫  </h2>"
+            tree = etree.HTML(html)
+
+            title1 = tree.xpath("//h2/text()")[0].strip()
+            title2 = tree.xpath("normalize-space(//h2)")
+
+            print(title1)		# Python   爬虫       #Python   爬虫
+            print(title2)		# Python 爬虫       #Python 爬虫
+    空列表和空字符串
+        xpath没有匹配结果时返回空列表
+        标签存在但文本为空时，可能返回空字符串或只包含空白的字符串
+        判断字段是否可用时，应同时考虑列表是否为空和文本清理后是否为空
+        e.g.
+            from lxml import etree
+
+            html = "<div><h2>   </h2></div>"
+            tree = etree.HTML(html)
+
+            title_list = tree.xpath("//h2/text()")
+
+            if title_list and title_list[0].strip():        # titile_list是否为空与去掉两边空白后是否为空
+                title = title_list[0].strip()
+            else:
+                title = "无标题"
+
+            print(title)		# 无标题
+    xpath条件and和or
+        and表示多个条件同时满足
+        or表示满足其中一个条件即可
+        e.g.
+            from lxml import etree
+
+            html = """
+            <div class="book" data-type="python">Python入门</div>
+            <div class="book" data-type="js">JS入门</div>
+            <div class="movie" data-type="python">Python视频</div>
+            """
+
+            tree = etree.HTML(html)
+
+            result1 = tree.xpath("//div[@class='book' and @data-type='python']/text()")
+            result2 = tree.xpath("//div[@class='book' or @class='movie']/text()")
+
+            print(result1)		# ['Python入门']
+            print(result2)		# ['Python入门', 'JS入门', 'Python视频']
+    contains(@class, "book")和完整class匹配
+        contains(@class, "book")只是判断class字符串中是否包含book
+        class="notebook"也会被contains(@class, "book")匹配到
+        匹配单独的class名时，应使用contains(concat(' ', normalize-space(@class), ' '), ' book ')
+        e.g.
+            from lxml import etree
+
+            html = """
+            <div class="book item">正确</div>
+            <div class="notebook item">容易误匹配</div>
+            """
+
+            tree = etree.HTML(html)
+
+            wrong = tree.xpath("//div[contains(@class, 'book')]/text()")
+            right = tree.xpath("//div[contains(concat(' ', normalize-space(@class), ' '), ' book ')]/text()")
+
+            print(wrong)		# ['正确', '容易误匹配']
+            print(right)		# ['正确']
+    urljoin的base_url选择
+        href为/detail/1时，会拼到站点根路径下
+        href为detail/1时，会拼到当前页面所在目录下
+        base_url应尽量使用当前页面的完整url
+        e.g.
+            from urllib.parse import urljoin
+
+            page_url = "https://example.com/books/list.html"
+
+            print(urljoin(page_url, "/detail/1"))		# https://example.com/detail/1
+            print(urljoin(page_url, "detail/1"))		# https://example.com/books/detail/1
+    response.text和response.content
+        response.text是解码后的字符串，适合解析HTML、JSON文本
+        response.content是原始字节，适合保存图片、视频、压缩包、PDF等二进制文件
+        e.g.
+            import requests
+
+            img_url = "https://example.com/a.jpg"
+            response = requests.get(img_url, timeout=10)
+            response.raise_for_status()
+
+            with open("a.jpg", "wb") as f:
+                f.write(response.content)
+    response.json()和json.loads()
+        response.json()用于直接解析requests响应中的JSON内容
+        json.loads()用于解析已经拿到的JSON字符串
+        两者解析失败都会报错，使用前应确认响应内容确实是JSON
+        e.g.
+            import json
+            import requests
+
+            response = requests.get("https://example.com/api/data", timeout=10)
+            data1 = response.json()
+
+            text = '{"name": "yuan", "age": 18}'
+            data2 = json.loads(text)
+
+            print(data1)
+            print(data2)		# {'name': 'yuan', 'age': 18}
+    re.findall和re.search
+        re.findall()返回所有匹配结果组成的列表
+        re.search()返回第一个匹配对象，没有匹配时返回None
+        使用re.search()取group前必须先判断是否匹配成功
+        e.g.
+            import re
+
+            text = "价格：129元，库存：56"
+
+            price_list = re.findall(r"价格：(\d+)元", text)
+            stock_match = re.search(r"库存：(\d+)", text)
+
+            print(price_list)		# ['129']
+
+            if stock_match:
+                print(stock_match.group(1))		# 56
+调试方法
+    打印状态码
+        print(response.status_code)
+    打印最终url
+        print(response.url)
+    打印部分响应内容
+        print(response.text[:500])
+    检查xpath结果数量
+        print(len(result))
+    检查单个节点内容
+        print(etree.tostring(node, encoding="unicode"))

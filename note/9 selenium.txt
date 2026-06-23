@@ -1,0 +1,503 @@
+Selenium
+    概念
+        Selenium是浏览器自动化工具，可以用代码控制浏览器完成打开页面、点击、输入、滚动、切换窗口、截图等操作
+        Selenium控制的是真实浏览器，因此浏览器会执行JavaScript并渲染页面。常用于自动化测试、页面交互、动态页面数据获取
+    1Selenium启动浏览器成本更高，不是优先选择，通常会比get慢，故通常优先使用requests
+环境安装
+    安装Selenium
+        pip install selenium
+    驱动程序
+        Selenium控制浏览器需要对应驱动程序
+        Selenium 4.6及以后内置Selenium Manager，可以自动查找、下载和缓存对应驱动
+        若版本不兼容，可以手动下载驱动
+            下载连接: https://googlechromelabs.github.io/chrome-for-testing/
+浏览器对象
+    创建浏览器对象
+        e.g.
+            from selenium import webdriver
+
+            driver = webdriver.Chrome()     # chrome浏览器
+            firefox_driver = webdriver.Firefox()        # firefox浏览器
+            edge_driver = webdriver.Edge()      # edge浏览器
+
+            driver.get("https://www.selenium.dev/")
+            driver.quit()
+    手动指定驱动路径
+        e.g.
+            from selenium import webdriver
+            from selenium.webdriver.chrome.service import Service
+
+            service = Service("./chromedriver")
+            driver = webdriver.Chrome(service=service)
+            driver.get("https://www.selenium.dev/")
+            driver.quit()
+    关闭浏览器
+        driver.close()
+            关闭当前窗口
+        driver.quit()
+            关闭整个浏览器会话并释放驱动进程
+        脚本结束前优先使用driver.quit()
+元素定位
+    概念
+        元素定位是从当前页面文档中找到指定标签
+        Selenium 4推荐统一使用find_element(By.定位方式, "定位值")
+        find_element返回第一个匹配元素
+        find_elements返回所有匹配元素组成的列表
+        find_element找不到元素会报错
+        find_elements找不到元素会返回空列表
+    导入
+        from selenium.webdriver.common.by import By
+    常用定位方式
+        By.ID
+            根据id属性定位
+        By.NAME
+            根据name属性定位
+        By.CLASS_NAME
+            根据单个class类名定位
+        By.TAG_NAME
+            根据标签名定位
+        By.LINK_TEXT
+            根据a标签完整可见文本定位
+        By.PARTIAL_LINK_TEXT
+            根据a标签部分可见文本定位
+        By.CSS_SELECTOR
+            根据CSS选择器定位
+        By.XPATH
+            根据XPath表达式定位
+    e.g.
+        driver.find_element(By.ID, "kw")
+        driver.find_element(By.NAME, "wd")
+        driver.find_element(By.CLASS_NAME, "search-input")
+        driver.find_element(By.TAG_NAME, "input")
+        driver.find_element(By.LINK_TEXT, "登录")
+        driver.find_element(By.PARTIAL_LINK_TEXT, "登")
+        driver.find_element(By.CSS_SELECTOR, "input[name='wd']")
+        driver.find_element(By.XPATH, "//input[@name='wd']")
+    定位建议
+        优先选择稳定的id、name、data-*属性，class可能被样式改动影响
+        页面结构复杂时可使用CSS选择器或XPath
+        不建议直接复制浏览器生成的很长绝对XPath，绝对XPath依赖完整层级，页面结构稍微变化就容易失效
+    class易错点
+        By.CLASS_NAME只能写单个class名
+        如果元素class="btn active"，不能写
+            By.CLASS_NAME, "btn active"
+        应使用CSS选择器
+            driver.find_element(By.CSS_SELECTOR, ".btn.active")
+    CSS选择器易错点
+        #id值表示根据id定位
+        .类名表示根据class定位
+        标签名[属性名='属性值']表示根据属性定位
+        空格表示后代关系
+        >表示直接子级关系
+节点交互
+    输入
+        element.send_keys("内容")
+    清空
+        element.clear()
+    点击
+        element.click()
+    获取文本
+        element.text
+    获取属性
+        element.get_attribute("href")
+        element.get_dom_attribute("href")
+        element.get_property("value")
+        e.g.
+            对
+                <a href="/login">登录</a>
+                <input value="abc">
+            element.get_dom_attribute("href")
+                /login      # 原始属性
+            element.get_property("href")
+                https://example.com/login       # JavaScript渲染结果
+            input_element.get_property("value")
+                先尝试取property,没有再取HTML attribute
+    常用状态
+        element.is_displayed()
+            判断元素是否可见
+        element.is_enabled()
+            判断元素是否可用
+        element.is_selected()
+            判断单选框或复选框是否被选中
+    e.g.
+        from selenium import webdriver
+        from selenium.webdriver.common.by import By
+
+        driver = webdriver.Chrome()
+
+        try:
+            driver.get("https://www.selenium.dev/selenium/web/web-form.html")
+
+            input_tag = driver.find_element(By.NAME, "my-text")
+            input_tag.clear()
+            input_tag.send_keys("python")
+
+            print(input_tag.get_property("value"))		# python
+        finally:
+            driver.quit()
+页面等待
+    强制等待
+        time.sleep(n)
+            程序固定暂停n秒
+        缺点
+            页面很快加载完成时仍然浪费时间
+            页面加载超过n秒时仍然会失败
+    隐式等待
+        driver.implicitly_wait(n)
+            设置全局元素查找等待时间
+            find_element查找失败时，会在n秒内反复尝试
+            如果提前找到元素，会立即继续执行
+        注意
+            隐式等待只作用于元素定位，不保证元素可见或可点击
+            不建议和显式等待混用，混用可能导致实际等待时间难以判断
+    显式等待
+        针对某个条件等待，条件满足时继续执行，超过最大等待时间仍不满足则报错
+        常用等待条件
+            presence_of_element_located()
+                等待元素存在于页面文档中
+            visibility_of_element_located()
+                等待元素存在并可见
+            element_to_be_clickable()
+                等待元素可点击
+            text_to_be_present_in_element()
+                等待元素文本中出现指定内容
+            url_contains()
+                等待当前地址包含指定内容
+            title_contains()
+                等待标题包含指定内容
+        e.g.
+            from selenium import webdriver
+            from selenium.webdriver.common.by import By
+            from selenium.webdriver.support.ui import WebDriverWait
+            from selenium.webdriver.support import expected_conditions as EC
+
+            driver = webdriver.Chrome()
+
+            try:
+                driver.get("https://www.selenium.dev/selenium/web/dynamic.html")
+                driver.find_element(By.ID, "adder").click()
+
+                wait = WebDriverWait(driver, 10)
+                box = wait.until(EC.presence_of_element_located((By.ID, "box0")))
+                print(box.get_dom_attribute("class"))		# redbox
+            finally:
+                driver.quit()
+    presence和visibility区别
+        presence只要求元素出现在页面文档中
+        visibility要求元素存在，并且宽高大于0，页面上可见
+    element_to_be_clickable注意
+        可点击通常表示元素可见且可用
+        如果有弹窗、遮罩层、固定导航覆盖元素，仍可能点击失败
+执行JavaScript
+    作用
+        Selenium可以通过execute_script()在当前页面执行JavaScript
+        常用于滚动页面、读取页面变量、修改页面状态、触发浏览器端逻辑
+    滚动页面
+        e.g.
+            driver.execute_script("window.scrollTo(0, document.body.scrollHeight)")
+    返回执行结果
+        e.g.
+            title = driver.execute_script("return document.title")
+            print(title)
+    传入元素参数
+        e.g.
+            element = driver.find_element(By.CSS_SELECTOR, "button")
+            driver.execute_script("arguments[0].click()", element)
+page_source: 获取页面源码
+    e.g.
+        from selenium import webdriver
+        from lxml import etree
+
+        driver = webdriver.Chrome()
+
+        try:
+            driver.get("https://www.selenium.dev/selenium/web/web-form.html")
+            page_text = driver.page_source
+            tree = etree.HTML(page_text)
+            title_list = tree.xpath("//title/text()")
+            print(title_list)		# ['Web form']
+        finally:
+            driver.quit()
+    易混淆点
+        requests获取的是服务器直接返回的响应内容
+        page_source获取的是浏览器当前页面文档内容
+        JavaScript请求返回的数据如果没有写入页面文档，page_source里可能没有
+        Shadow DOM中的内容不一定能直接通过page_source拿到
+元素截图和页面截图
+    页面截图
+        driver.save_screenshot("page.png")
+            保存当前页面截图
+    元素截图
+        element.screenshot("element.png")
+            保存指定元素截图
+动作链
+    概念
+        动作链用于模拟较复杂的鼠标和键盘操作
+        常见操作包括悬停、拖拽、长按、右键、组合键、滚动
+        创建动作后需要perform()才会执行
+    导入
+        from selenium.webdriver import ActionChains
+    常用操作
+        click()
+            点击
+        click_and_hold()
+            点击并按住
+        release()
+            松开鼠标
+        move_to_element()
+            移动到元素
+        move_by_offset()
+            按偏移量移动
+        drag_and_drop()
+            拖拽
+        context_click()
+            右键点击
+        double_click()
+            双击
+        send_keys()
+            键盘输入
+    e.g.
+        from selenium import webdriver
+        from selenium.webdriver import ActionChains
+        from selenium.webdriver.common.by import By
+
+        driver = webdriver.Chrome()
+
+        try:
+            driver.get("https://www.selenium.dev/selenium/web/mouse_interaction.html")
+
+            hover_tag = driver.find_element(By.ID, "mouse-tracker")
+            ActionChains(driver).move_to_element(hover_tag).perform()
+        finally:
+            driver.quit()
+    拖拽注意
+        move_by_offset(x, y)使用的是相对当前位置的偏移
+        页面缩放、设备像素比、滚动位置都可能影响坐标
+键盘操作
+    导入
+        from selenium.webdriver.common.keys import Keys
+    常用按键
+        Keys.ENTER
+        Keys.TAB
+        Keys.CONTROL
+        Keys.SHIFT
+        Keys.ESCAPE
+        Keys.BACKSPACE
+    e.g.
+        from selenium.webdriver.common.by import By
+        from selenium.webdriver.common.keys import Keys
+
+        input_tag = driver.find_element(By.NAME, "q")
+        input_tag.send_keys("selenium")
+        input_tag.send_keys(Keys.ENTER)
+    组合键
+        e.g.
+            input_tag.send_keys(Keys.CONTROL, "a")
+            input_tag.send_keys(Keys.BACKSPACE)
+下拉框
+    导入
+        from selenium.webdriver.support.ui import Select
+    使用前提
+        Select主要用于HTML中的select标签
+        如果页面使用div模拟下拉框，不能直接使用Select
+    常用方法
+        select_by_value()
+            根据value属性选择
+        select_by_visible_text()
+            根据可见文本选择
+        select_by_index()
+            根据下标选择
+    e.g.
+        from selenium.webdriver.common.by import By
+        from selenium.webdriver.support.ui import Select
+
+        select_tag = driver.find_element(By.NAME, "my-select")
+        select_obj = Select(select_tag)
+        select_obj.select_by_value("2")
+iframe
+    概念
+        iframe会在当前页面中嵌入另一个页面
+            e.g.
+                <iframe src="https://example.com/login"></iframe>
+        Selenium默认只能定位当前文档中的元素
+        目标元素在iframe内部时，需要先切换进入iframe
+    切换进入iframe
+        driver.switch_to.frame("iframe名称或id")
+        driver.switch_to.frame(iframe_element)
+    切回上一层
+        driver.switch_to.parent_frame()
+    切回主页面
+        driver.switch_to.default_content()
+    e.g.
+        from selenium.webdriver.common.by import By
+
+        iframe_tag = driver.find_element(By.CSS_SELECTOR, "iframe")
+        driver.switch_to.frame(iframe_tag)
+
+        inner_tag = driver.find_element(By.ID, "draggable")
+
+        driver.switch_to.default_content()
+    常见报错原因
+        元素实际在iframe中，但代码仍停留在主页面
+        已经切入iframe后，又去定位主页面元素
+        iframe自身还没加载完成
+窗口和标签页
+    当前窗口句柄
+        driver.current_window_handle
+    所有窗口句柄
+        driver.window_handles
+    切换窗口
+        driver.switch_to.window(handle)
+    新开标签页
+        driver.switch_to.new_window("tab")
+    新开窗口
+        driver.switch_to.new_window("window")
+    e.g.
+        old_handle = driver.current_window_handle
+        driver.switch_to.new_window("tab")
+        driver.get("https://www.selenium.dev/")
+
+        driver.close()
+        driver.switch_to.window(old_handle)
+    注意
+        点击链接后如果打开新标签页，需要切换到新窗口句柄后才能定位新页面元素
+        关闭当前窗口后，需要切换到仍然存在的窗口
+弹窗
+    alert弹窗
+        浏览器原生弹窗不能直接用普通元素定位
+        需要切换到alert对象
+    常用操作
+        alert = driver.switch_to.alert
+        alert.text
+            获取弹窗文本
+        alert.accept()
+            确认
+        alert.dismiss()
+            取消
+        alert.send_keys("内容")
+            输入内容，适用于prompt弹窗
+    e.g.
+        alert = driver.switch_to.alert
+        print(alert.text)
+        alert.accept()
+Options: 浏览器配置
+    无界面模式
+        e.g.
+            from selenium import webdriver
+            from selenium.webdriver.chrome.options import Options
+
+            options = Options()
+            options.add_argument("--headless=new")
+
+            driver = webdriver.Chrome(options=options)
+            driver.get("https://www.selenium.dev/")
+            driver.quit()
+    常用参数
+        --headless=new
+            无界面运行Chrome
+        --window-size=1366,768
+            设置窗口大小
+        --disable-gpu
+            旧环境中有时用于减少图形相关问题
+    注意
+        需要依赖窗口尺寸的页面，应明确设置window-size
+Cookie
+    获取Cookie
+        driver.get_cookies()
+            获取当前站点所有Cookie
+        driver.get_cookie("name")
+            获取指定名称Cookie
+    添加Cookie
+        driver.add_cookie({"name": "key", "value": "value"})
+    删除Cookie
+        driver.delete_cookie("name")
+        driver.delete_all_cookies()
+    注意
+        添加Cookie前需要先打开对应域名页面\
+js注入绕过selennium检测
+    from selenium.webdriver import ActionChains
+    from selenium.webdriver import Chrome
+  
+    driver = Chrome('./chromedriver',options=chrome_options)
+    #Selenium在打开任何页面之前，先运行这个Js文件。
+    with open('./stealth.min.js') as f:
+        js = f.read()
+    # 进行js注入，绕过检测
+    # execute_cdp_cmd执行cdp命令（在浏览器开发者工具中执行相关指令，完成相关操作）
+    # Page.addScriptToEvaluateOnNewDocument执行脚本
+    driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+        "source": js
+    })
+    
+    driver.get("https://www.example.com")
+页面数据获取方式
+    直接读取元素文本
+        element.text
+            获取元素可见文本
+    读取输入框内容
+        element.get_property("value")
+            获取输入框当前值
+    读取链接
+        element.get_attribute("href")
+    获取页面源码后解析
+        driver.page_source
+    通过开发者工具抓接口
+        如果数据来自接口，优先分析接口请求
+    注意
+        element.text通常只返回可见文本，隐藏文本可能需要读取属性或页面源码
+常见报错
+    NoSuchElementException
+        含义
+            没有找到元素
+        常见原因
+            定位表达式写错
+            元素还没有加载出来
+            元素在iframe中
+            元素在新窗口中
+        处理
+            检查定位表达式
+            使用显式等待
+            检查iframe和窗口切换
+    ElementNotInteractableException
+        含义
+            元素存在但不能交互
+        常见原因
+            元素不可见
+            元素被禁用
+            元素还没完成渲染
+            定位到隐藏元素
+        处理
+            等待visibility或element_to_be_clickable
+            定位真正可交互的元素
+    ElementClickInterceptedException
+        含义
+            点击被其他元素拦截
+        常见原因
+            弹窗、遮罩层、固定导航覆盖目标元素
+            页面滚动位置不合适
+        处理
+            先关闭遮罩或弹窗
+            滚动到元素附近
+            等待遮罩消失
+    StaleElementReferenceException
+        含义
+            元素引用已经失效
+        常见原因
+            页面刷新
+            前端重新渲染节点
+            切换页面后继续使用旧元素对象
+        处理
+            重新定位元素
+            不要长期保存会变化的元素对象
+    TimeoutException
+        含义
+            显式等待超时
+        常见原因
+            条件一直不满足
+            定位表达式错误
+            页面加载失败
+            等待条件选错
+        处理
+            检查页面实际状态
+            调整等待条件
+            检查网络和页面报错

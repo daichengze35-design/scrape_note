@@ -1,0 +1,844 @@
+Web基本概念
+    软件开发架构
+        客户端/服务器架构
+            需要安装专门的客户端程序
+            客户端负责界面展示和部分本地功能
+            服务器负责提供数据、账号、文件、消息等服务
+            常见场景
+                QQ、微信、网盘客户端、视频客户端
+        浏览器/服务器架构
+            用户通过浏览器访问服务器资源
+            用户通常不需要安装专门客户端
+            浏览器负责解析HTML、CSS、JavaScript并渲染页面
+            浏览器通常通过HTTP或HTTPS请求服务器资源
+        前端与后端
+            前端
+                运行在浏览器中的页面结构、样式和交互逻辑
+                核心技术包括HTML、CSS、JavaScript
+            后端
+                运行在服务器上的业务逻辑、数据处理和接口服务
+            前后端交互
+                前端通过请求接口发送数据
+                后端处理请求后返回响应数据
+HTTP协议
+    概念
+        HTTP是Web中最常见的应用层协议
+        HTTP规定客户端和服务器之间如何表达请求与响应
+        HTTPS是在HTTP通信外层增加加密和身份校验
+    资源
+        浏览器请求的网页、图片、样式文件、脚本文件、接口数据都可以视为资源
+        一个资源通常由URL定位
+    URL基本组成
+        协议
+            http://
+            https://
+        主机
+            服务器域名或IP地址
+        端口
+            HTTP默认端口为80
+            HTTPS默认端口为443
+            使用默认端口时URL中通常省略
+        路径
+            表示服务器上的资源位置
+        查询字符串
+            位于?之后
+            多个参数通常使用&连接
+            e.g.
+                /books?name=test&id=123456
+        片段标识
+            位于#之后
+            通常用于定位当前页面内部位置
+            片段标识不会作为HTTP请求内容发送给服务器
+    特性
+        请求-响应模式
+            基本交互由客户端发起请求
+            服务器收到请求后返回响应
+            一个请求最终对应一个最终响应
+        无状态
+            HTTP协议本身不记录两次请求之间的业务状态
+            每次请求都需要携带服务器判断身份或上下文所需的信息
+            优点
+                协议简单
+                便于扩展
+                便于服务器处理大量请求
+            问题
+                登录状态、购物车、访问权限等业务需要识别同一用户的连续请求
+            常见解决方式
+                Cookie
+                Session
+                Token
+    HTTP报文
+        概念
+            HTTP交互中的请求和响应都可以称为HTTP消息
+            HTTP/1.1中消息通常由起始行、头部字段、空行和内容组成
+            HTTP/2和HTTP/3在传输层面不再按纯文本行直接传输，但语义仍然包含方法、状态码、头部字段和内容
+        注意
+            头部字段用于描述请求或响应的元信息
+            内容可以是文本，也可以是图片、文件等二进制数据
+            请求不一定有请求体
+            响应不一定有响应体
+    请求协议
+        作用
+            浏览器向服务器发送请求时需要遵循的规则
+        HTTP/1.1请求组成
+            请求行
+                请求方法
+                请求目标
+                协议版本
+                e.g.
+                    GET /index.html HTTP/1.1
+            请求头
+                描述客户端、目标主机、内容类型、缓存条件等信息
+            空行
+                用于分隔请求头和请求体
+            请求体
+                用于携带提交给服务器的数据
+                GET请求通常不使用请求体
+                POST请求通常把表单数据或接口数据放在请求体中
+        常见请求头
+            Accept
+                告诉服务器客户端希望接收的数据类型
+            Accept-Encoding
+                告诉服务器客户端支持的压缩方式
+            Accept-Language
+                告诉服务器客户端偏好的语言
+            Host
+                告诉服务器本次请求要访问的主机
+                HTTP/1.1请求必须包含Host
+            User-Agent
+                告诉服务器发起请求的浏览器或程序信息
+            Referer
+                表示当前请求来源页面
+                字段名历史拼写就是Referer
+                常用于来源统计和基础防盗链
+            If-Modified-Since
+                携带客户端本地缓存资源的最后修改时间
+                服务器可据此判断资源是否需要重新返回
+            Cookie
+                浏览器访问匹配站点时自动携带的Cookie数据
+            Content-Type
+                描述请求体的数据格式
+                常见值
+                    application/x-www-form-urlencoded
+                    multipart/form-data
+                    application/json
+            Content-Length
+                表示请求体字节长度
+            Connection
+                HTTP/1.1中可用于控制连接管理
+                HTTP/2和HTTP/3中不使用该头部字段表达连接保持
+            X-Requested-With
+                不是HTTP标准字段
+                一些旧项目用XMLHttpRequest表示请求来自Ajax
+        常见请求方法
+            GET
+                语义是获取资源
+                参数常放在URL查询字符串中
+                浏览器地址栏、历史记录、服务器日志中可能出现查询参数
+                适合查询和读取数据
+                不适合提交密码、文件或大量数据
+                按规范语义不应让GET请求产生修改服务器数据的结果
+            POST
+                语义是提交数据给服务器处理
+                参数通常放在请求体中
+                适合提交表单、创建资源、上传文件、发送JSON数据
+                请求体大小仍可能受到浏览器、服务器或网关配置限制
+                POST不是加密方式，是否加密取决于是否使用HTTPS
+            PUT
+                常用于整体更新资源
+            PATCH
+                常用于局部更新资源
+            DELETE
+                常用于删除资源
+            OPTIONS
+                常用于询问服务器支持的通信选项
+        GET和POST易混淆点
+            GET和POST都可以向服务器发送数据
+            GET的常见参数位置是URL查询字符串
+            POST的常见参数位置是请求体
+            GET请求可被浏览器缓存和收藏
+            POST请求通常不用于收藏和缓存
+            敏感数据不要仅因为使用POST就认为安全，传输敏感数据必须使用HTTPS并配合后端校验
+    响应协议
+        作用
+            服务器向浏览器返回响应时需要遵循的规则
+        HTTP/1.1响应组成
+            状态行
+                协议版本
+                状态码
+                原因短语
+                e.g.
+                    HTTP/1.1 200 OK
+            响应头
+                描述服务器、内容类型、缓存策略、重定向位置等信息
+            空行
+                用于分隔响应头和响应体
+            响应体
+                服务器返回的具体内容
+        响应状态码
+            作用
+                表示请求处理结果
+            分类
+                1xx
+                    临时响应，表示请求已收到，需要继续处理
+                2xx
+                    请求成功
+                3xx
+                    重定向或需要客户端继续处理
+                4xx
+                    客户端请求有问题
+                5xx
+                    服务器处理失败
+            常见状态码
+                200
+                    请求成功
+                201
+                    资源创建成功
+                204
+                    请求成功，但响应体为空
+                301
+                    永久重定向
+                302
+                    临时重定向
+                304
+                    资源未修改，可继续使用缓存
+                400
+                    请求格式或参数错误
+                401
+                    未认证
+                403
+                    已理解请求，但拒绝访问
+                404
+                    资源不存在
+                405
+                    请求方法不被允许
+                500
+                    服务器内部错误
+                502
+                    网关或代理收到无效响应
+                503
+                    服务暂时不可用
+        常见响应头
+            Location
+                告诉浏览器重定向目标地址
+                常和3xx状态码一起使用
+            Server
+                表示服务器软件信息
+            Content-Type
+                描述响应体的数据类型和编码
+                e.g.
+                    Content-Type: text/html; charset=utf-8
+            Content-Encoding
+                描述响应体使用的压缩方式
+            Content-Length
+                表示响应体字节长度
+            Content-Disposition
+                可用于提示浏览器下载文件
+            Set-Cookie
+                服务器通过该响应头要求浏览器保存Cookie
+            Cache-Control
+                控制缓存策略
+                no-store表示不存储缓存
+                no-cache表示使用缓存前必须向服务器验证
+            Expires
+                使用具体时间控制缓存过期
+                优先级通常低于Cache-Control
+            ETag
+                表示资源版本标识
+                常用于缓存验证
+            Last-Modified
+                表示资源最后修改时间
+                常用于缓存验证
+Cookie
+    产生原因
+        HTTP协议本身无状态
+        登录状态、购物车等业务需要识别同一用户的连续请求
+        Cookie用于让浏览器在后续请求中自动携带少量状态数据
+    概念
+        Cookie是HTTP状态管理机制的一部分
+        Cookie以键值对形式保存少量数据
+        Cookie通常由服务器通过Set-Cookie响应头写入浏览器
+        浏览器后续访问匹配域名和路径时，会通过Cookie请求头自动携带对应Cookie
+        前端脚本也可以通过document.cookie读写未被限制的Cookie
+    重点
+        Cookie存储在浏览器端
+        Cookie会随匹配的HTTP请求自动发送给服务器
+        Cookie不适合存储大量数据
+        Cookie不应存储明文密码
+    原理
+        1. 浏览器第一次访问服务器
+        2. 服务器在响应中返回Set-Cookie
+        3. 浏览器按Cookie属性保存数据
+        4. 浏览器再次访问匹配地址时自动携带Cookie
+        5. 服务器根据Cookie识别用户状态或业务信息
+    常见属性
+        Domain
+            限制Cookie可发送到哪些域名
+        Path
+            限制Cookie可发送到哪些路径
+        Expires
+            设置Cookie过期时间
+        Max-Age
+            设置Cookie剩余有效秒数
+            同时存在Expires和Max-Age时，现代浏览器通常以Max-Age为准
+        HttpOnly
+            设置后前端脚本不能通过document.cookie读取该Cookie
+            常用于降低脚本注入后窃取会话Cookie的风险
+        Secure
+            设置后Cookie只会在安全连接中发送
+        SameSite
+            控制跨站请求是否携带Cookie
+            常见值
+                Strict
+                Lax
+                None
+            SameSite=None通常必须同时设置Secure
+    生命周期
+        会话Cookie
+            没有设置Expires或Max-Age
+            通常在浏览器会话结束后失效
+        持久Cookie
+            设置了Expires或Max-Age
+            到达过期条件后失效
+    规范与限制
+        浏览器对Cookie大小和数量都有实现限制
+        通用浏览器通常至少支持单个Cookie约4096字节
+        具体数量上限由浏览器实现决定
+        服务器应尽量减少Cookie数量和大小
+    易混淆点
+        Cookie不是Session
+            Cookie保存在浏览器端
+            Session数据通常保存在服务器端
+            浏览器常通过Cookie保存Session标识
+        Cookie不是本地存储的唯一方式
+            localStorage也能保存在浏览器端
+            localStorage不会随每个HTTP请求自动发送
+        Cookie不是安全凭证本身
+            安全性取决于HTTPS、HttpOnly、Secure、SameSite、后端校验和过期策略
+HTML
+    概念
+        HTML是描述网页结构的标记语言
+        HTML文件扩展名通常为.html或.htm
+        HTML负责定义页面中的标题、段落、链接、图片、表单等结构
+        HTML不是编程语言
+        浏览器会解析HTML文档并生成页面结构
+    HTML文档基本结构
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="UTF-8">
+            <title>页面标题</title>
+        </head>
+        <body>
+            页面内容
+        </body>
+        </html>
+        结构说明
+            <!DOCTYPE html>
+                声明当前文档使用标准模式解析
+            <html></html>
+                HTML文档根元素
+                内部通常包含head和body
+            <head></head>
+                文档头部
+                通常放置编码、标题、样式、脚本、搜索信息等元数据
+                head中的大多数内容不会直接显示在页面主体中
+            <meta charset="UTF-8">
+                声明HTML文档编码方式
+            <title></title>
+                定义网页标题
+                通常显示在浏览器标签页
+            <body></body>
+                网页主体
+                页面中可见的主要内容通常写在body中
+    标签语法
+        双标签
+            <标签名 属性名="属性值">内容</标签名>
+        空元素
+            <标签名 属性名="属性值">
+            常见空元素
+                <br>
+                <hr>
+                <img>
+                <input>
+                <meta>
+                <link>
+        规则
+            HTML标签由尖括号包围
+            标签名和属性名建议统一小写
+            HTML语法中标签名和属性名不区分大小写
+            属性值是否区分大小写取决于具体属性
+            URL路径在很多服务器上区分大小写
+            标签可以有属性，也可以没有属性
+            页面可见文本通常写在标签之间
+            有些属性是布尔属性，只要写出属性名就表示启用
+                e.g.
+                    <input type="checkbox" checked>
+                    <button disabled>提交</button>
+        注意
+            HTML中的<br/>通常也能被浏览器解析
+            但HTML空元素不需要用/>闭合
+            写普通HTML时优先使用<br>、<img>、<input>这类写法
+    基本标签
+        标题标签
+            <h1>一级标题</h1>
+            <h2>二级标题</h2>
+            <h3>三级标题</h3>
+            <h4>四级标题</h4>
+            <h5>五级标题</h5>
+            <h6>六级标题</h6>
+            注意
+                h1通常表示当前页面最重要标题
+                不要只为了字体大小随意选择标题级别
+        段落标签
+            <p>第一段文本。</p>
+            <p>第二段文本。</p>
+        换行标签
+            <br>
+            e.g.
+                <p>第一行<br>第二行</p>
+            注意
+                br只表示换行
+                不应使用多个br制造大段间距，页面间距应交给CSS
+        水平分隔标签
+            <hr>
+        文本格式化标签
+            <strong></strong>
+                表示重要内容
+                浏览器默认通常加粗显示
+            <b></b>
+                表示需要视觉加粗但不强调重要性的文本
+            <em></em>
+                表示语气强调
+                浏览器默认通常斜体显示
+            <i></i>
+                表示与普通文本区分的内容
+                浏览器默认通常斜体显示
+            <del></del>
+                表示被删除的内容
+            <mark></mark>
+                表示被标记或高亮的内容
+        特殊符号
+            &nbsp;
+                不换行空格
+            &lt;
+                小于号
+            &gt;
+                大于号
+            &amp;
+                &符号
+        默认显示类型
+            块级显示
+                默认独占一行
+                常见标签
+                    div
+                    p
+                    h1到h6
+                    ul
+                    ol
+                    li
+            行内显示
+                默认按文本内容占位
+                常见标签
+                    span
+                    a
+                    strong
+                    em
+            注意
+                块级和行内描述的是浏览器默认显示效果
+                CSS可以通过display改变元素显示方式
+        div和span
+            <div></div>
+                通用块级容器
+                常用于划分页面结构
+            <span></span>
+                通用行内容器
+                常用于给局部文本设置样式或绑定行为
+超链接标签
+    概念
+        超链接使用a标签
+        超链接表示当前页面指向另一个目标地址
+        目标可以是网页、页面内部位置、图片、文件、邮件地址或电话地址
+    基本语法
+        <a href="https://www.baidu.com">百度</a>
+    常见属性
+        href
+            规定链接跳转目标
+            可以写完整URL
+            可以写相对路径
+            可以写页面片段
+            可以写mailto或tel地址
+        title
+            鼠标悬浮时显示提示信息
+        target
+            _self
+                默认值，在当前窗口打开
+            _blank
+                在新窗口或新标签页打开
+        rel
+            描述当前页面和目标页面之间的关系
+            target="_blank"链接建议同时设置rel="noopener noreferrer"
+    href示例
+        完整URL
+            <a href="https://example.com/news">新闻</a>
+        相对路径
+            <a href="./about.html">关于我们</a>
+        页面内部位置
+            <a href="#top">回到顶部</a>
+        邮件地址
+            <a href="mailto:test@example.com">发送邮件</a>
+        电话地址
+            <a href="tel:10086">拨打电话</a>
+    注意
+        href为空时会解析为当前页面地址
+        href="#"会跳到当前页面顶部或改变地址片段
+        如果只是触发页面行为而不是跳转，优先使用button
+        浏览器出于安全原因通常限制网页直接打开本地file地址
+img标签
+    概念
+        <img>用于在HTML页面中嵌入图片
+        常见图片格式
+            jpg
+            jpeg
+            png
+            gif
+            webp
+            svg
+    基本语法
+        <img src="./images/logo.png" alt="网站标志">
+    常见属性
+        src
+            指定图片地址
+        alt
+            图片无法显示时使用的替代文本
+            读屏工具也会读取alt内容
+        width
+            指定图片显示宽度
+            属性值使用不带单位的数字
+        height
+            指定图片显示高度
+            属性值使用不带单位的数字
+        title
+            鼠标悬浮时显示提示文字
+        loading
+            控制图片加载策略
+            lazy表示图片接近可视区域时再加载
+    注意
+        src可以是相对路径，也可以是完整URL
+        src路径错误时图片无法显示
+        alt应描述图片在当前页面中的作用
+        装饰性图片可以使用alt=""
+        border属性已经不推荐使用，图片边框应使用CSS设置
+        同时设置width和height有助于浏览器提前保留图片位置，减少页面抖动
+        点击图片跳转可以把img放在a标签内部
+            <a href="./detail.html"><img src="./images/book.png" alt="图书封面"></a>
+列表标签
+    无序列表
+        <ul>
+            <li>苹果</li>
+            <li>香蕉</li>
+            <li>橙子</li>
+        </ul>
+    有序列表
+        <ol start="1">
+            <li>打开浏览器</li>
+            <li>输入地址</li>
+            <li>查看页面</li>
+        </ol>
+    常见标签
+        <ul></ul>
+            定义无序列表
+        <ol></ol>
+            定义有序列表
+        <li></li>
+            定义列表项
+    常见属性
+        start
+            用于ol
+            设置有序列表起始序号
+        reversed
+            用于ol
+            设置有序列表倒序编号
+        type
+            用于ol时可控制编号类型
+            ul的type属性属于旧写法，项目符号样式应使用CSS控制
+    注意
+        ul和ol的直接子元素应为li
+        列表可以嵌套，但嵌套列表应放在li内部
+表格标签
+    概念
+        HTML表格用于展示行列关系明确的数据
+        表格不应用于页面整体布局
+        页面布局应使用CSS完成
+    基本语法
+        <table>
+            <caption>成绩表</caption>
+            <thead>
+                <tr>
+                    <th scope="col">姓名</th>
+                    <th scope="col">成绩</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>张三</td>
+                    <td>90</td>
+                </tr>
+                <tr>
+                    <td>李四</td>
+                    <td>85</td>
+                </tr>
+            </tbody>
+        </table>
+    常见标签
+        <table></table>
+            定义表格
+        <caption></caption>
+            定义表格标题
+        <thead></thead>
+            定义表头区域
+        <tbody></tbody>
+            定义主体区域
+        <tfoot></tfoot>
+            定义表尾区域
+        <tr></tr>
+            定义表格中的一行
+        <th></th>
+            定义表头单元格
+        <td></td>
+            定义普通单元格
+    常见属性
+        colspan
+            设置单元格横向合并的列数
+        rowspan
+            设置单元格纵向合并的行数
+        scope
+            用于th
+            说明表头对应的范围
+            常见值
+                col
+                row
+    注意
+        border、cellpadding、cellspacing、align、bgcolor等表现类属性属于旧写法
+        边框、间距、对齐、背景色应使用CSS设置
+        th用于表头，td用于普通数据
+        合并单元格后要重新计算每一行的单元格数量
+    e.g.
+        <table>
+            <tr>
+                <th scope="row">姓名</th>
+                <td colspan="2">张三</td>
+            </tr>
+            <tr>
+                <th scope="row">联系方式</th>
+                <td>电话</td>
+                <td>邮箱</td>
+            </tr>
+        </table>
+表单标签
+    概念
+        表单用于收集用户输入并提交给服务器
+        常见输入方式包括文本、密码、单选、多选、下拉选择、日期、文件上传等
+    组成
+        form标签
+            定义表单提交目标、提交方法、编码方式等信息
+        表单控件
+            用于输入或选择数据
+        表单按钮
+            用于提交、重置或触发脚本行为
+    form常见属性
+        action
+            表单提交地址
+            为空时通常提交到当前页面地址
+        method
+            表单提交方法
+            默认值为get
+            常见值
+                get
+                post
+        target
+            表单提交后响应页面的打开位置
+            取值规则参考a标签target属性
+        enctype
+            表单提交时请求体的编码方式
+            只在method="post"提交时重点使用
+            常见值
+                application/x-www-form-urlencoded
+                    默认值，适合普通文本表单
+                multipart/form-data
+                    文件上传必须使用
+                text/plain
+                    格式不稳定，不适合正式接口提交
+        autocomplete
+            控制浏览器是否提供自动填充
+    常见表单控件
+        <input type="text">
+            单行文本框
+        <input type="password">
+            密码框
+            页面显示时通常以掩码展示
+        <input type="checkbox">
+            复选框
+            未选中时不会提交该字段
+        <input type="radio">
+            单选框
+            同一组选项的name必须相同
+        <input type="date">
+            日期选择框
+        <input type="file">
+            文件上传框
+            所属form需要设置method="post"和enctype="multipart/form-data"
+        <input type="hidden">
+            隐藏字段
+            页面不可见，但会随表单提交
+        <select></select>
+            下拉选择框
+            内部使用option定义选项
+        <textarea></textarea>
+            多行文本框
+        <button type="submit"></button>
+            提交按钮
+        <button type="reset"></button>
+            重置按钮
+        <button type="button"></button>
+            普通按钮
+    name和value
+        name
+            表单提交时的字段名
+            没有name的控件通常不会作为表单字段提交
+        value
+            表单提交时的字段值
+            checkbox和radio应设置明确value
+            option未设置value时，提交文本内容
+    label标签
+        作用
+            给表单控件设置说明文本
+            点击label文本时可以聚焦或选中对应控件
+        写法
+            <label for="username">用户名</label>
+            <input id="username" name="username" type="text">
+    注意
+        placeholder不是label的替代品
+        前端校验不能替代后端校验
+        required、minlength、maxlength、pattern等属性可以做基础表单校验
+        密码即使放在POST请求体中，也必须使用HTTPS传输
+    e.g.
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="UTF-8">
+            <title>注册</title>
+        </head>
+        <body>
+            <form action="/register" method="post" autocomplete="on">
+                <label for="username">用户名</label>
+                <input id="username" type="text" name="username" required>
+
+                <label for="password">密码</label>
+                <input id="password" type="password" name="password" required>
+
+                <p>爱好</p>
+                <label><input type="checkbox" name="hobby" value="basketball">篮球</label>
+                <label><input type="checkbox" name="hobby" value="football">足球</label>
+
+                <p>性别</p>
+                <label><input type="radio" name="gender" value="male">男</label>
+                <label><input type="radio" name="gender" value="female">女</label>
+
+                <label for="birthday">生日</label>
+                <input id="birthday" type="date" name="birthday">
+
+                <label for="province">籍贯</label>
+                <select id="province" name="province">
+                    <option value="">请选择</option>
+                    <option value="hebei">河北</option>
+                    <option value="anhui">安徽</option>
+                    <option value="liaoning">辽宁</option>
+                </select>
+
+                <label for="intro">自我介绍</label>
+                <textarea id="intro" name="intro" rows="5" cols="30"></textarea>
+
+                <button type="submit">提交</button>
+                <button type="reset">重置</button>
+            </form>
+        </body>
+        </html>
+    文件上传
+        必须使用post提交
+        form必须设置enctype="multipart/form-data"
+        文件控件必须设置name
+        e.g.
+            <form action="/upload" method="post" enctype="multipart/form-data">
+                <input type="file" name="avatar">
+                <button type="submit">上传</button>
+            </form>
+多媒体标签
+    video视频标签
+        概念
+            <video>用于在页面中嵌入视频
+        基本语法
+            <video src="./media/demo.mp4" controls width="600"></video>
+        常见属性
+            src
+                指定视频资源地址
+            controls
+                显示浏览器默认播放控件
+            autoplay
+                尝试自动播放
+            muted
+                默认静音
+            loop
+                循环播放
+            width
+                设置播放区域宽度
+            height
+                设置播放区域高度
+            poster
+                设置视频加载前显示的封面图
+            preload
+                控制浏览器预加载策略
+                常见值
+                    none
+                    metadata
+                    auto
+        多资源写法
+            <video controls width="600" poster="./images/poster.jpg">
+                <source src="./media/demo.webm" type="video/webm">
+                <source src="./media/demo.mp4" type="video/mp4">
+                当前浏览器不支持video标签。
+            </video>
+        注意
+            不同浏览器对视频编码格式支持可能不同
+            autoplay可能被浏览器策略阻止
+            需要自动播放的视频通常要同时设置muted
+            loop是布尔属性，不使用loop="2"或loop="-1"表示循环次数
+            width和height属性值使用不带单位的数字
+    audio音频标签
+        概念
+            <audio>用于在页面中嵌入音频
+        基本语法
+            <audio src="./media/demo.mp3" controls></audio>
+        常见属性
+            src
+                指定音频资源地址
+            controls
+                显示浏览器默认播放控件
+            autoplay
+                尝试自动播放
+            muted
+                默认静音
+            loop
+                循环播放
+            preload
+                控制浏览器预加载策略
+        多资源写法
+            <audio controls>
+                <source src="./media/demo.ogg" type="audio/ogg">
+                <source src="./media/demo.mp3" type="audio/mpeg">
+                当前浏览器不支持audio标签。
+            </audio>
+        注意
+            autoplay可能被浏览器策略阻止
+            音频自动播放不应作为页面关键逻辑
+            loop是布尔属性，不表示循环次数

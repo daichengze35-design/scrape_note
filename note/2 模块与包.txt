@@ -1,0 +1,362 @@
+模块
+    概念
+        一个.py文件就是一个模块
+        模块用于把函数、变量、类等代码按功能拆分到不同文件中
+        目标是降低单个文件代码量，提高代码可读性和可维护性
+    模块类型
+        解释器内建模块
+            Python自带模块，如time、random、os、json、re
+        第三方模块
+            需要额外安装的模块
+        自定义模块
+            自己编写的.py文件
+    导入
+        import 模块名
+        import 模块名 as 别名
+        import 模块1,
+        from 模块名 import 成员名
+        from 模块名 import *        # 导入该模块所有成员
+    导入规则
+        导入模块时会执行一遍模块的顶层代码(没有缩进)，如果顶层代码是if等语句，条件成立会执行内部代码
+        同一个模块被多次导入时，默认只执行一次
+        执行文件名不要和要导入的模块名相同
+            例如不要把自己的文件命名为time.py、json.py、random.py
+    e.g.
+        cal.py
+            def add(x, y):
+                return x + y
+
+            def mul(x, y):
+                return x * y
+
+            print("这是cal模块文件")
+
+        logger.py
+            def get_logger():
+                print("打印日志")
+
+            print("这是logger模块文件")
+
+        main.py
+            import cal      # 这是cal模块文件
+            import logger       # 这是logger模块文件
+            from cal import mul
+            cal.add(1, 2) == 3
+            mul(3, 4) == 12
+            logger.get_logger()     # 打印日志
+包
+    概念
+        包是管理多个相关模块的目录结构
+        包的核心作用是把同一类功能的.py文件放在同一个命名空间下
+        传统包必须包含__init__.py文件
+        Python3.3以后支持没有__init__.py的命名空间包
+    __init__.py
+        作用
+            标记包
+                传统规则中，目录里有__init__.py才会被识别为包
+            初始化包
+                import包名时，会先执行__init__.py中的顶层代码(__name__ == 包名)
+            暴露常用成员
+                可以在__init__.py中导入常用函数，让外部导入路径更短
+            控制from 包 import *
+                可以通过__all__指定允许被导出的名字
+        空文件也有意义
+            __init__.py内容为空时，仍然表示当前目录是一个包
+        执行规则
+            import 包名
+                会执行包下__init__.py的顶层代码
+            import 包名.模块名
+                会先执行包下__init__.py的顶层代码，再加载指定模块
+            from 包名 import 模块名
+                会先执行包下__init__.py的顶层代码，再加载指定模块
+    导入包中的模块
+        import 包名.模块名
+            import utils.cal
+            utills.cal.add()
+        import 包名.模块名 as 别名
+            import utils.cal as log
+            log.add()
+        from 包名 import 模块名
+            from utils import cal
+            cal.add()
+        from 包名.模块名 import 成员名
+            from utils.cal import add
+            add()
+    模块与包导入语法对照
+        import cal
+            导入模块cal，调用cal.add()
+        from cal import add
+            导入模块cal中的add函数，调用add()
+        from utils import cal
+            从包utils中导入cal模块，调用cal.add()
+        import utils.cal
+            导入包utils中的cal模块，调用utils.cal.add()
+        from utils.cal import add
+            从包utils的cal模块中导入add函数，调用add()
+    e.g.
+        utils
+            __init__.py
+            cal.py
+
+        cal.py
+            def add(x, y):
+                return x + y
+            def mul(x, y):
+                return x * y
+            print(f"cal.py, __name__ is {__name__}")
+
+        __init__.py
+            if __name__ == "utils":
+                print(f"__init__.py, __name__ is {__name__}")
+            from .cal import add
+            from .cal import mul
+            __all__ = ["add"]
+            print("import __init__.py over")
+
+        main.py
+            from utils import add
+            print(add(1, 2))
+            print(mul(1, 2))
+        
+        执行main.py
+            __init__.py, __name__ is utlls
+            cal.py, __name__ is utils.cal
+            import __init__.py over
+            3
+            报错，mul没有被导入
+__name__
+    概念
+        __name__是Python内置变量，保存当前模块的名称
+    取值规则
+        当前文件被直接执行时
+            __name__ == "__main__"
+        当前文件被其他文件导入时
+            __name__ == "模块名"
+    作用
+        声明程序入口
+        写模块内部测试代码
+        避免导入模块时自动执行测试逻辑
+    e.g.
+        def add(x, y):
+            return x + y
+
+        if __name__ == "__main__":
+            print(add(1, 2))
+        执行逻辑
+            直接运行当前文件
+                会执行if __name__ == "__main__":下面的代码
+            被其他文件import导入
+                不会执行if __name__ == "__main__":下面的代码
+time 模块
+    操作
+        time.time()
+            返回当前时间戳(计算机容易处理的时间格式)
+        time.strftime("%Y-%m-%d %X")
+            %Y 年
+            %m 月
+            %d 日
+            %X 时分秒
+            e.g.
+                time.strftime("%Y-%m-%d %X")        # 2026-4-29 13:56
+                time.strftime("%Y %m %d")       # 2026 4 29
+        time.sleep(n)
+            让程序暂停n秒
+random 模块
+    操作
+        random.random()
+            返回0到1之间的小数，不包含1
+        random.randint(a, b)
+            返回a到b之间的整数，包含a和b
+        random.randrange(a, b)
+            返回a到b之间的整数，包含a，不包含b
+        random.choice(seq)
+            从序列seq中随机返回一个元素
+        random.sample(seq, n)
+            从序列seq中随机返回n个元素组成的新列表
+        random.uniform(a, b)
+            返回a到b之间的小数
+        random.shuffle(list_obj)
+            直接打乱原列表，不返回新列表
+os 模块
+    作用
+        os模块是Python与操作系统交互的接口
+        常用于路径、目录、文件、环境变量等操作
+    当前路径操作
+        os.getcwd()
+            获取当前工作目录
+        os.chdir("dirname")
+            修改当前工作目录
+        os.curdir
+            返回当前目录符号"."
+        os.pardir
+            返回父目录符号".."
+    目录操作
+        os.makedirs("dirname1/dirname2")
+            创建多层目录
+        os.mkdir("dirname")
+            创建单层目录
+        os.listdir("dirname")
+            返回指定目录下的文件和子目录列表
+        os.rmdir("dirname")
+            删除单层空目录
+        os.removedirs("dirname1")
+            删除空目录，并递归删除上级空目录
+    文件操作
+        os.remove("filename")
+            删除文件
+        os.rename("oldname", "newname")
+            重命名文件或目录
+        os.stat("path/filename")
+            获取文件或目录信息
+    路径分隔符
+        os.sep
+            当前系统路径分隔符
+            Windows为"\\"
+            Linux为"/"
+        os.linesep
+            当前系统换行符
+        os.pathsep
+            当前系统多个路径之间的分隔符
+    os.path路径操作
+        os.path.abspath(path)
+            返回绝对路径(absolute path)
+        os.path.split(path)
+            将路径拆分成目录和文件名
+        os.path.dirname(path)
+            返回路径中的目录部分
+        os.path.basename(path)
+            返回路径中的文件名部分
+        os.path.exists(path)
+            判断路径是否存在
+        os.path.isabs(path)
+            判断是否为绝对路径
+        os.path.isfile(path)
+            判断是否为文件
+        os.path.isdir(path)
+            判断是否为目录
+        os.path.join(path1, path2)
+            拼接路径
+        os.path.getatime(path)
+            返回最后访问时间
+        os.path.getmtime(path)
+            返回最后修改时间
+        os.path.getsize(path)
+            返回文件大小
+json 模块
+    作用
+        json模块用于Python对象与JSON格式数据之间转换
+        JSON常用于配置文件、接口返回数据、数据存储
+    序列化
+        将Python对象转换成JSON格式字符串，或写入JSON文件
+    反序列化
+        将JSON格式字符串或JSON文件转换成Python对象
+    方法对照表
+        json.dumps(obj)
+            Python对象 -> JSON格式字符串
+            返回值是str，不直接写入文件
+        json.loads(json_str)
+            JSON格式字符串 -> Python对象
+            返回值取决于JSON内容，可以是dict、list、str、int、float、bool、None
+        json.dump(obj, fp)
+            Python对象 -> JSON文件
+            obj是要写入的Python对象，fp是已打开的可写文件对象
+            返回值是None
+            可以改写为json.dump(obj, fp, ensure_ascii=False, indent=4)
+                # ensure_ascii:支持中文ACSII而不转换为\uXXX机器码
+                # indent - 4:缩进为4，改善排版
+        json.load(fp)
+            JSON文件 -> Python对象
+            fp是已打开的可读文件对象
+    常用参数
+        ensure_ascii=False
+            输出时保留中文字符，不转义为\uXXXX
+        indent=n
+            按n个空格缩进，便于阅读
+    e.g.
+        import json
+        dic = {
+            "hobby": ["football", "pingpang", "smoke"],
+            "age": 20,
+            "score": 97.6,
+            "name": "zhangsan"
+        }
+        s = json.dumps(dic, ensure_ascii=False)     # {"hobby": ["football", "pingpang", "smoke"], "age": 20, "score": 97.6, "name": "zhangsan"}
+
+        new_dic = json.loads(s)     # {'hobby': ['football', 'pingpang', 'smoke'], 'age': 20, 'score': 97.6, 'name': 'zhangsan'}
+    e.g.
+        import json
+
+        dic = {"name": "zhangsan", "age": 20}
+
+        fp = open("./dic.json", "w", encoding="utf-8")
+        json.dump(dic, fp, ensure_ascii=False)
+        fp.close()
+
+        fp = open("./dic.json", "r", encoding="utf-8")
+        data = json.load(fp)        # {'name': 'zhangsan', 'age': 20}
+        fp.close()
+正则re 模块
+    常用符号
+        .
+            匹配除换行符以外的任意一个字符
+        []
+            匹配集合中的任意一个字符
+            [aoe]表示匹配a、o、e中的任意一个
+            [a-w]表示匹配a到w中的任意一个
+            字符集内不需要用逗号分隔，例如[35789]表示3、5、7、8、9中的任意一个
+        \d
+            匹配数字字符，常见ASCII数字场景中等价于[0-9]
+        *
+            匹配前一个规则任意多次，包含0次
+        +
+            匹配前一个规则至少1次
+        ?
+            匹配前一个规则0次或1次
+        {m}
+            匹配固定m次
+        {m,}
+            匹配至少m次
+        {m,n}
+            匹配m到n次
+        ^
+            匹配字符串开头
+        $
+            匹配字符串结尾
+        ()
+            分组
+    贪婪与非贪婪
+        贪婪模式
+            默认尽可能多地匹配
+            .*
+        非贪婪模式
+            尽可能少地匹配
+            .*?
+    re.findall()
+        re.findall(rule, string)
+            rule表示正则规则
+            string表示要匹配的原始字符串
+            返回值是列表
+            没有分组时，保存所有匹配到的完整内容
+            有分组时，保存分组匹配到的内容
+    示例
+        import re
+
+        string = "我喜欢身高为170的女孩"
+        result = re.findall(r"\d+", string)
+        print(result[0])        # 170
+
+        key = "http://www.baidu.com and https://boob.com"
+        result = re.findall(r"https?://", key)
+        print(result)       # ['http://', 'https://']
+
+        key = "bobo@hit.edu.com"
+        result = re.findall(r"h.*?\.", key)
+        print(result)       # ['hit.']
+
+        key = "saas and sas and saaas"
+        result = re.findall(r"sa{1,2}s", key)
+        print(result)       # ['saas', 'sas']
+
+        key = "你好我的手机号是13222222222你记住了吗"
+        result = re.findall(r"1[35789]\d{9}", key)
+        print(result)       # ['13222222222']

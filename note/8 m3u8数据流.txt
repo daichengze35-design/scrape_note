@@ -1,0 +1,214 @@
+M3U与M3U8
+    M3U
+        M3U是播放列表文本格式
+        M3U里保存的是音视频资源路径或地址
+        播放器读取M3U后，会继续请求列表中指向的真实媒体资源
+        e.g.
+            music/001.mp3
+            music/002.mp3
+            video/001.mp4
+    M3U8
+        M3U8是使用UTF-8编码的M3U播放列表
+        在HLS场景中，M3U8会额外使用大量以#EXT开头的标签描述流媒体信息
+        e.g.
+            #EXTM3U
+            #EXT-X-VERSION:3
+            #EXT-X-TARGETDURATION:6
+            #EXT-X-MEDIA-SEQUENCE:0
+            #EXTINF:5.000,
+            segment0.ts
+            #EXTINF:5.000,
+            segment1.ts
+            #EXT-X-ENDLIST
+    易混淆点
+        M3U8里不一定直接出现.ts，也可能出现另一个.m3u8
+        M3U8里以#开头的行不都是无用注释，很多是播放控制标签
+        不以#开头的行通常是资源地址，可能是媒体片段，也可能是子播放列表
+播放列表类型
+    主播放列表
+        用于记录不同清晰度、码率、音轨或字幕对应的子播放列表
+        通常包含#EXT-X-STREAM-INF
+        主播放列表中通常不直接写媒体片段
+        e.g.
+            #EXTM3U
+            #EXT-X-STREAM-INF:BANDWIDTH=800000,RESOLUTION=640x360
+            low/index.m3u8
+            #EXT-X-STREAM-INF:BANDWIDTH=2400000,RESOLUTION=1280x720
+            high/index.m3u8
+    媒体播放列表
+        用于记录真正的媒体片段地址和顺序
+        通常包含#EXTINF
+        下载视频片段时主要解析媒体播放列表
+        e.g.
+            #EXTM3U
+            #EXT-X-TARGETDURATION:6
+            #EXTINF:5.000,
+            file0.ts
+            #EXTINF:5.000,
+            file1.ts
+            #EXT-X-ENDLIST
+    点播列表
+        一般表示完整视频
+        通常可以看到#EXT-X-ENDLIST
+        适合按列表顺序一次性下载全部片段
+    直播列表
+        列表内容会不断更新
+        通常不会长期固定包含#EXT-X-ENDLIST
+        需要按一定间隔重复请求M3U8获取新增片段
+        不适合只请求一次列表就认为已经拿到完整视频
+常见标签
+    #EXTM3U
+        表示这是扩展M3U播放列表
+        在标准M3U8中应出现在第一行
+    #EXT-X-VERSION
+        表示播放列表使用的协议版本
+        某些标签或属性需要较高版本才允许使用
+    #EXT-X-TARGETDURATION
+        表示媒体片段的目标最大时长
+        它不是整个视频的总时长
+        它通常应大于或等于列表中片段时长四舍五入后的结果
+    #EXT-X-MEDIA-SEQUENCE
+        表示列表中第一个媒体片段的序号
+        它不是片段总数量
+        直播列表更新时，该值可能不断变大
+    #EXT-X-PLAYLIST-TYPE
+        VOD表示点播列表
+        EVENT表示事件列表
+        没有这个标签时，不能只靠它判断是否直播或点播，还要结合#EXT-X-ENDLIST和页面行为判断
+    #EXTINF
+        表示下一条媒体片段的播放时长
+        #EXTINF后面紧跟的非标签行才是这个片段的地址
+        它表示时长，不表示文件大小
+    #EXT-X-ENDLIST
+        表示播放列表不会再追加新的媒体片段
+        常见于点播视频
+    #EXT-X-STREAM-INF
+        常见于主播放列表
+        下一行通常是某个清晰度或码率对应的子播放列表地址
+    #EXT-X-KEY
+        表示后续媒体片段的加密方式和密钥地址
+        METHOD=NONE表示后续片段不再使用前面的加密方式
+        METHOD=AES-128时，通常需要请求URI对应的密钥并按规则解密片段
+        如果不会处理加密，应先确认是否可以直接让ffmpeg读取原始M3U8处理
+    #EXT-X-MAP
+        常见于分片MP4形式
+        表示媒体初始化片段地址
+        如果列表使用.m4s片段，合并时通常不能忽略初始化片段
+    #EXT-X-DISCONTINUITY
+        表示前后片段之间存在时间戳、编码参数或内容边界变化
+        合并失败时需要注意这个标签
+    #EXT-X-BYTERANGE
+        表示媒体片段只取某个文件的一段字节范围
+        不能简单把同一个URL当作完整片段下载一次就结束
+抓包定位M3U8
+    基础流程
+        打开浏览器开发者工具
+        切换到网络请求面板
+        刷新播放页面
+        点击播放按钮
+        搜索m3u8
+    过滤方式
+        在网络请求中过滤m3u8
+        在网络请求中过滤ts或m4s
+        在页面源码或脚本响应中搜索.m3u8
+        查看播放器配置接口返回的数据
+    判断请求是否正确
+        响应内容以#EXTM3U开头，通常说明拿到的是M3U8文本
+        响应状态码为403，常见原因是权限、Referer、Cookie、签名或地址过期
+        响应状态码为404，常见原因是地址错误或资源已失效
+        响应内容是HTML，说明可能请求到了拦截页、登录页或错误页
+M3U8解析
+    基本规则
+        先按行拆分文本
+        去掉每行左右空白
+        跳过空行
+        根据标签判断列表类型和附加信息
+        非标签行使用urljoin转成完整地址
+    urljoin
+        用于把相对地址转换为完整地址
+        不要直接用字符串拼接处理片段地址
+        字符串拼接容易出现路径层级错误
+        e.g.
+            from urllib.parse import urljoin
+
+            base_url = "https://example.com/video/hls/index.m3u8"
+            uri = "../seg/0001.ts"
+            full_url = urljoin(base_url, uri)
+
+            print(full_url)		# https://example.com/video/seg/0001.ts
+    判断是否主播放列表
+        e.g.
+            def is_master_playlist(m3u8_text):
+                return "#EXT-X-STREAM-INF" in m3u8_text
+    选择子播放列表
+        思路
+            主播放列表中#EXT-X-STREAM-INF的下一条非标签行通常是子播放列表地址
+            可以根据BANDWIDTH或RESOLUTION选择清晰度
+            学习阶段可以先选择最后一个或手动选择目标清晰度，但不要默认所有网站都按从低到高排列
+        e.g.
+            from urllib.parse import urljoin
+
+            def parse_variant_urls(m3u8_text, m3u8_url):
+                variant_list = []
+                last_stream_info = None
+
+                for line in m3u8_text.splitlines():
+                    line = line.strip()
+
+                    if not line:
+                        continue
+
+                    if line.startswith("#EXT-X-STREAM-INF"):
+                        last_stream_info = line
+                        continue
+
+                    if last_stream_info and not line.startswith("#"):
+                        variant_list.append({
+                            "info": last_stream_info,
+                            "url": urljoin(m3u8_url, line)
+                        })
+                        last_stream_info = None
+
+                return variant_list
+    易错点
+        不能只用if not line.startswith("#")就认为拿到的一定是.ts
+        主播放列表中的非标签行是子播放列表地址
+        媒体播放列表中的非标签行才通常是媒体片段地址
+加密M3U8
+    判断方式
+        如果播放列表中出现#EXT-X-KEY，说明后续片段可能涉及加密，需要查看METHOD、URI、IV等属性
+    常见情况
+        METHOD=NONE
+            表示后续片段不使用当前加密方式
+        METHOD=AES-128
+            常见于普通HLS加密片段
+            需要请求URI指向的密钥
+            如果没有显式IV，通常会根据媒体序号生成IV
+        SAMPLE-AES
+            不是简单把整个片段按AES-128解密即可
+            学习阶段不要用普通AES-CBC代码强行处理
+合并与转封装
+    直接拼接的问题
+        未加密且编码参数一致的.ts片段，有时可以按顺序二进制拼接
+        但遇到时间戳、广告插入、初始化片段、加密、字节范围或编码变化时容易出问题
+        学习和实战中优先使用ffmpeg
+    ffmpeg直接读取M3U8
+        命令
+            ffmpeg -i "index.m3u8" -c copy "output.mp4"
+        说明
+            index.m3u8可以是本地路径，也可以是远程地址
+            远程地址如果需要请求头，需要按实际情况给ffmpeg补请求头
+            -c copy表示不重新编码，只做封装转换，速度较快
+    ffmpeg合并本地片段
+        思路
+            确保片段文件按原始顺序排列
+            生成一个文件列表
+            使用ffmpeg的concat方式合并
+        文件列表示例
+            file '00000_segment0.ts'
+            file '00001_segment1.ts'
+            file '00002_segment2.ts'
+        命令
+            ffmpeg -f concat -safe 0 -i filelist.txt -c copy output.mp4
+    注意
+        如果是.m4s片段，通常还需要#EXT-X-MAP指向的初始化片段

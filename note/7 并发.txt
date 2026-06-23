@@ -1,0 +1,1074 @@
+并发编程
+    多进程
+        适合计算密集型任务
+        进程之间默认不共享内存
+        创建和切换成本较高
+    多线程
+        适合请求、下载、文件读写等IO密集型任务
+        同一进程内的线程共享内存
+        在CPython中，普通Python代码会受到全局解释器锁影响，不适合用来提升计算密集型任务的并行计算能力
+    协程
+        适合大量IO密集型任务
+        通常运行在单线程内
+        需要在可能阻塞的位置主动让出执行权
+        不能直接配合普通阻塞函数获得异步效果
+基本概念
+    进程
+        正在运行的程序实例
+        操作系统会给进程分配独立的内存空间和相关资源
+        运行一个Python文件时，会先产生一个主进程
+        在主进程中可以继续创建子进程
+    线程
+        进程中的实际执行单位
+        一个进程至少有一个线程，默认执行代码的线程叫主线程
+        同一进程内的多个线程共享这个进程的内存和资源
+    CPU
+        真正执行指令的硬件，单个CPU核心同一时刻只能执行一个执行流
+    进程
+        概念
+            进程是操作系统进行资源分配的重要单位
+            每个进程都有自己的内存空间
+            不同进程之间默认不能直接访问彼此的变量
+        特点
+            稳定性较好
+                一个子进程异常退出，通常不会直接破坏其他进程的内存
+            数据隔离
+                进程之间默认不共享普通变量
+            成本较高
+                创建进程、切换进程、进程间通信都比线程更重
+        使用场景
+            CPU计算密集型任务
+            需要隔离运行环境的任务
+            某个任务崩溃时不希望影响主进程的场景
+    进程调度
+        概念
+            操作系统负责决定哪个进程或线程获得CPU执行时间
+            调度由操作系统完成，普通Python代码不能精确控制CPU下一次切换到哪个任务
+        时间片
+            操作系统会把CPU执行时间切成很短的片段
+            一个任务运行完当前时间片后，可能被切换出去，而切换速度很快，所以用户会感觉多个程序在同时运行
+        常见调度思想
+            先来先服务
+                先进入就绪队列的任务先执行
+            短作业优先
+                预计执行时间短的任务优先执行
+            时间片轮转
+                每个任务轮流获得一段CPU时间
+            多级反馈队列
+                按优先级维护多个队列，不同队列可以使用不同时间片，长时间没有完成的任务可能被放入更低优先级队列
+    并发与并行
+        并发
+            同一时间段内处理多个任务，强调任务管理能力，不要求同一时刻真的有多个任务同时执行
+            单核CPU也可以通过快速切换任务实现并发
+        并行
+            同一时刻真正执行多个任务，强调同一时刻同时执行
+            需要多个CPU核心或多个计算资源同时工作
+        并发不一定并行，但并行一定属于并发的一种表现
+        Python中需要注意
+            多进程可以更容易利用多核CPU做并行计算
+            CPython中的多线程适合IO密集型任务，不适合提升普通Python计算代码的多核并行能力
+            协程通常用于并发IO，不用于多核并行计算
+    进程状态
+        新建状态
+            进程正在被创建，操作系统正在准备进程所需资源
+        就绪状态
+            进程已经具备运行条件，正在等待操作系统分配CPU
+        运行状态
+            进程正在CPU上执行
+        阻塞状态
+            进程暂时无法继续执行，常见原因是等待网络响应、等待磁盘读写、等待用户输入、等待锁
+            等待的事件完成后，进程会回到就绪状态
+        终止状态
+            进程执行结束或因为异常、系统信号等原因退出
+    同步与异步
+    同步
+        发起任务后，需要等待任务完成，才能继续执行后续依赖结果的代码
+        遇到耗时IO时容易浪费等待时间
+    异步
+        发起任务后，不在当前位置一直等待任务完成，程序可以先执行其他任务，等结果就绪后再处理结果
+        异步强调不阻塞当前执行流程，不等于一定开了新线程或新进程
+    阻塞
+        当前执行流因为等待某个事件而暂停
+        例如网络请求未返回、文件读取未完成、sleep未结束、input未输入
+    非阻塞
+        操作不能立刻完成时，不让当前执行流一直卡住
+        通常需要轮询、回调、事件循环等机制配合
+    易混淆点
+        同步和异步描述的是任务发起后如何等待结果
+        阻塞和非阻塞描述的是等待时当前执行流是否被卡住
+        并发和并行描述的是多个任务的执行关系
+        异步可以通过线程、进程、协程、事件循环等方式实现
+        异步不等于并行
+并发方式选择
+    IO密集型任务
+        请求网页
+        下载文件
+        读写文件
+        访问数据库
+        优先考虑线程池或协程
+    CPU密集型任务
+        大量数学计算
+        图片处理
+        加密解密
+        大规模数据计算
+        优先考虑多进程或进程池
+    少量简单任务
+        可以直接创建Thread或Process
+    请求量较小时可以先用线程池处理并发请求，请求量很大时再考虑协程
+进程
+    multiprocessing模块
+        作用
+            multiprocessing是Python标准库中用于创建和管理进程的模块
+            Process是multiprocessing模块中用于创建进程的类
+        基本流程
+            导入Process
+            准备子进程要执行的函数
+            创建Process对象并通过target绑定函数
+            通过args或kwargs传递参数
+            调用start()启动子进程
+            需要等待子进程结束时调用join()
+        注意
+            Windows和macOS部分启动方式下，创建子进程必须放在if __name__ == "__main__":下面
+            子进程函数要尽量写成模块顶层函数，不要写成临时匿名函数
+            start()只是启动子进程，不表示子进程已经执行结束
+        创建子进程
+            e.g.
+                from multiprocessing import Process
+
+                def task():
+                    print("子进程任务")		# 子进程任务
+
+                if __name__ == "__main__":
+                    p = Process(target=task)
+                    p.start()
+                    p.join()
+
+                    print("主进程结束")		# 主进程结束
+            说明
+                p = Process(target=task)只是创建进程对象
+                p.start()才会真正启动子进程
+                p.join()会让主进程等待当前子进程执行结束
+        子进程传参
+            args
+                按位置传参
+                即使只有一个参数，也必须写成元组形式
+            kwargs
+                按关键字传参
+            e.g.
+                from multiprocessing import Process
+
+                def task(name, count):
+                    print(name, count)		# download 3
+
+                if __name__ == "__main__":
+                    p = Process(target=task, args=("download", 3))
+                    p.start()
+                    p.join()
+
+                    print("执行结束")       # 执行结束
+        多进程执行IO任务
+            场景
+                多个任务大部分时间都在等待IO结果
+                多进程可以让多个等待任务同时推进，但进程创建成本较高，IO任务通常优先考虑线程池或协程
+            e.g.
+                from multiprocessing import Process
+                import time
+
+                def download(url):
+                    print("开始请求:", url)
+                    time.sleep(2)
+                    print("请求结束:", url)
+
+                if __name__ == "__main__":
+                    start = time.time()
+                    urls = ["https://example.com/1", "https://example.com/2", "https://example.com/3"]
+                    process_list = []
+
+                    for url in urls:
+                        p = Process(target=download, args=(url,))
+                        p.start()
+                        process_list.append(p)
+
+                    for p in process_list:
+                        p.join()
+
+                    print("总耗时:", round(time.time() - start, 2))
+        join方法
+            作用
+                等待指定子进程或子线程结束
+                join()调用结束后，才能继续执行后面的代码
+            e.g.
+                from multiprocessing import Process
+                import time
+
+                def task(num):
+                    time.sleep(1)
+                    print("任务结束:", num)
+
+                if __name__ == "__main__":
+                    process_list = []
+
+                    for i in range(3):
+                        p = Process(target=task, args=(i,))
+                        p.start()
+                        process_list.append(p)
+
+                    for p in process_list:
+                        p.join()
+
+                    print("全部任务结束")		# 全部任务结束
+    进程数据隔离
+        概念
+            普通全局变量不会在多个进程之间共享修改结果
+            子进程中修改全局变量，不会改变主进程中的同名变量
+        原因
+            每个进程有独立内存空间
+            Linux默认创建子进程时可能复制主进程内存，但修改后仍然不会影响主进程变量
+            Windows默认重新启动解释器并导入模块，普通变量同样不会共享
+        e.g.
+            from multiprocessing import Process
+
+            ticket_num = 10
+
+            def buy_ticket(num):
+                global ticket_num
+                ticket_num -= num
+
+            if __name__ == "__main__":
+                p = Process(target=buy_ticket, args=(3,))
+                p.start()
+                p.join()
+
+                print("主进程剩余:", ticket_num)		# 主进程剩余: 10
+    共享数据
+        Queue
+            作用
+                用于多个进程之间传递数据，常用于子进程把处理结果传回主进程
+                get()在没有数据时会等待，除非设置timeout或使用非阻塞方式
+                通常把多个值放进字典，元组或列表中，再通过q.put()传回主进程
+            e.g.
+                from multiprocessing import Process, Queue
+
+                def worker(q, money, ticket_num):
+                    money -= 30
+                    ticket_num -= 1
+                    q.put({"money": money, "ticket_num": ticket_num})
+
+                if __name__ == "__main__":
+                    q = Queue()
+                    money = 100
+                    ticket_num = 10
+
+                    p = Process(target=worker, args=(q, money, ticket_num))
+                    p.start()
+                    p.join()
+
+                    result = q.get()
+                    print(result)		# {'money': 70, 'ticket_num': 9}
+                    print(money, ticket_num)		# 100 10
+            多个进程put时
+                多个进程都可以对同一个Queue执行put()
+                每次put()会向Queue中放入一条数据
+                每次get()只会从Queue中取出一条数据
+                Queue按照先进先出取数据，也就是先put()进去的数据，会先被get()取出来
+        Pipe
+            作用
+                用于两个进程之间直接通信
+                Pipe()会返回两个连接对象，可以分别交给两个进程使用
+                使用send()发送数据，使用recv()接收数据
+            特点
+                默认创建双向管道，两端都可以发送和接收
+                更适合两个进程之间一对一传递消息
+                如果通信进程很多，Queue通常更方便
+            e.g.
+                from multiprocessing import Process, Pipe
+
+                def worker(conn):
+                    conn.send("hello")
+                    conn.close()
+
+                if __name__ == "__main__":
+                    parent_conn, child_conn = Pipe()
+
+                    p = Process(target=worker, args=(child_conn,))
+                    p.start()
+
+                    result = parent_conn.recv()
+                    p.join()
+
+                    print(result)		# hello
+            说明
+                parent_conn和child_conn是管道的两端
+                子进程使用child_conn.send()发送数据
+                主进程使用parent_conn.recv()接收数据
+                recv()在没有收到数据时会等待
+        Manager
+            作用
+                用于创建多个进程可以共同访问的对象
+                常见对象有list，dict，Queue，Lock等
+                写法接近普通列表和字典
+            特点
+                使用方便，适合共享结构化数据
+                Manager背后会启动管理进程，其他进程通过代理对象访问共享数据
+                访问速度通常比Queue，Value，Array慢
+            e.g.
+                from multiprocessing import Process, Manager
+
+                def worker(data):
+                    data["name"] = "python"
+                    data["count"] = 1
+
+                if __name__ == "__main__":
+                    with Manager() as manager:
+                        data = manager.dict()
+
+                        p = Process(target=worker, args=(data,))
+                        p.start()
+                        p.join()
+
+                        print(data["name"], data["count"])		# python 1
+            说明
+                manager.dict()创建的是可以跨进程访问的字典代理对象
+                子进程修改data后，主进程可以看到修改结果
+                数据量大或修改非常频繁时，Manager可能成为性能瓶颈
+        Lock
+            作用
+                用于保护多个进程同时修改的共享数据
+                保证同一时刻只有一个进程进入被锁保护的代码
+                常和Value，Array，Manager对象一起使用
+            为什么需要锁
+                num.value += 1不是一步完成的操作
+                它包含读取原值、计算新值、写回新值
+                多个进程同时执行时，可能互相覆盖修改结果
+            e.g.
+                from multiprocessing import Process, Value, Lock
+
+                def add(num, lock):
+                    for _ in range(1000):
+                        with lock:
+                            num.value += 1
+
+                if __name__ == "__main__":
+                    num = Value("i", 0)
+                    lock = Lock()
+
+                    p1 = Process(target=add, args=(num, lock))
+                    p2 = Process(target=add, args=(num, lock))
+
+                    p1.start()
+                    p2.start()
+                    p1.join()
+                    p2.join()
+
+                    print(num.value)		# 2000
+            说明
+                with lock会自动获取锁和释放锁
+                锁里面只放必须保护的共享数据修改代码
+                锁可以保证结果正确，但会降低一部分并发效率
+        Value
+            作用
+                用于在多个进程之间共享一个简单值
+                适合共享整数、浮点数等单个基础数据
+                通过.value读取和修改真实值
+            常见类型标记
+                "i"表示有符号整数
+                "d"表示双精度浮点数
+                "b"表示有符号字符
+                "b"
+                    from multiprocessing import Value
+
+                    flag = Value("b", -5)
+                    flag.value = 6
+
+                    print(flag.value)		# 6
+                    说明
+                        Value("b", -5)表示创建一个可以在多个进程之间共享的有符号字符
+                        这里的有符号字符本质上保存的是较小范围的整数
+                        "b"不是用来直接保存Python字符串的
+                "b"保存字符编号
+                    from multiprocessing import Value
+
+                    char_code = Value("b", 65)
+
+                    print(char_code.value)		# 65
+                    print(chr(char_code.value))		# A
+                    说明
+                        65是字符"A"对应的编号
+                        chr(char_code.value)可以把编号转换成对应字符
+                        char_code.value本身仍然是整数65
+            e.g.
+                from multiprocessing import Process, Value
+
+                def worker(num):
+                    num.value += 1
+
+                if __name__ == "__main__":
+                    num = Value("i", 0)
+
+                    p = Process(target=worker, args=(num,))
+                    p.start()
+                    p.join()
+
+                    print(num.value)		# 1
+            说明
+                Value("i", 0)创建一个进程间共享整数，初始值是0
+                子进程修改num.value后，主进程可以看到变化
+                多个进程同时修改同一个Value时，仍然需要考虑Lock
+        Array
+            作用
+                用于在多个进程之间共享一组同类型数据
+                适合共享固定长度的数字序列
+                可以通过下标读取和修改元素
+            特点
+                Array中元素类型需要统一
+                长度通常在创建时确定
+                适合简单数组数据，不适合复杂嵌套结构
+            e.g.
+                from multiprocessing import Process, Array
+
+                def worker(nums):
+                    nums[0] = 100
+                    nums[1] = 200
+
+                if __name__ == "__main__":
+                    nums = Array("i", [1, 2, 3])
+
+                    p = Process(target=worker, args=(nums,))
+                    p.start()
+                    p.join()
+
+                    print(list(nums))		# [100, 200, 3]
+                    print(nums[0])      # 100
+            说明
+                Array("i", [1, 2, 3])创建一个共享整数数组
+                子进程通过下标修改数组元素
+                主进程通过list(nums)查看修改后的结果
+        选择建议
+            只传递数据或结果，优先使用Queue
+            两个进程之间直接发消息，可以使用Pipe
+            想共享字典或列表，并且更重视写法方便，可以使用Manager
+            多个进程同时修改同一份共享数据，需要使用Lock
+            只共享一个简单值，可以使用Value
+            共享一组同类型简单数据，可以使用Array
+    守护进程
+        概念
+            守护进程会随着主进程结束而结束
+            守护进程不适合执行必须完整保存结果的任务
+        设置方式
+            p.daemon = True
+            必须在p.start()之前设置
+        限制
+            守护进程中不能再创建子进程
+            主进程结束时，守护进程可能来不及执行清理逻辑
+        e.g.
+            from multiprocessing import Process
+            import time
+
+            def task():
+                time.sleep(2)
+                print("子进程执行结束")
+
+            if __name__ == "__main__":
+                p = Process(target=task)
+                p.daemon = True
+                p.start()
+
+                print("主进程结束")		# 主进程结束
+    进程池
+        概念
+            进程池会维护固定数量的工作进程
+            适合批量提交CPU密集型任务
+            可以避免频繁创建和销毁进程
+        推荐模块
+            concurrent.futures.ProcessPoolExecutor
+            e.g.
+                from concurrent.futures import ProcessPoolExecutor
+
+                def square(num):
+                    return num * num
+
+                if __name__ == "__main__":
+                    with ProcessPoolExecutor(max_workers=3) as pool:
+                        result_list = list(pool.map(square, [1, 2, 3, 4]))
+
+                    print(result_list)		# [1, 4, 9, 16]
+        注意
+            进程池中的任务函数需要能被子进程导入
+            大对象在进程之间传递会有序列化成本
+            CPU密集型任务的进程数量通常接近CPU核心数即可
+线程
+    CPython中的全局解释器锁
+        概念
+            CPython解释器中，同一进程内同一时刻通常只有一个线程执行Python字节码，这个机制会限制普通Python多线程在CPU密集型任务上的并行计算能力
+        影响
+            CPU密集型任务
+                多线程通常不能明显提升计算速度
+                更适合使用多进程
+            IO密集型任务
+                线程等待IO时可以释放执行机会
+                多线程仍然常用
+        注意
+            这是CPython实现中的重要特性
+            某些C扩展在执行耗时计算时可能释放全局解释器锁
+            学习普通Python爬虫时，可以先按IO密集型任务理解多线程的用途
+    threading模块
+        作用
+            threading是Python标准库中用于创建和管理线程的模块
+            Thread是threading模块中用于创建线程的类
+        基本流程
+            导入Thread
+            准备线程要执行的函数
+            创建Thread对象并通过target绑定函数
+            通过args或kwargs传递参数
+            调用start()启动线程
+            需要等待线程结束时调用join()
+        创建子线程
+            e.g.
+                from threading import Thread
+
+                def task(num):
+                    print("num的值是:", num)		# num的值是: 1
+
+                if __name__ == "__main__":
+                    t = Thread(target=task, args=(1,))
+                    t.start()
+                    t.join()
+
+                    print("主线程结束")		# 主线程结束
+            注意
+                t.start()启动线程
+                不要直接调用t.run()
+                直接调用run()只是普通函数调用，不会创建新的执行线程
+        继承Thread创建线程
+            写法
+                自定义类继承Thread
+                重写run方法
+                创建对象后调用start()
+            e.g.
+                from threading import Thread
+                import time
+
+                class DownloadThread(Thread):
+                    def __init__(self, url):
+                        super().__init__()
+                        self.url = url
+
+                    def run(self):
+                        print("开始请求:", self.url)
+                        time.sleep(1)
+                        print("请求结束:", self.url)
+
+                if __name__ == "__main__":
+                    thread_list = []
+
+                    for i in range(3):
+                        t = DownloadThread(f"https://example.com/{i}")
+                        t.start()
+                        thread_list.append(t)
+
+                    for t in thread_list:
+                        t.join()
+
+                    print("全部线程结束")		# 全部线程结束
+    线程数据共享
+        概念
+            同一个进程内的多个线程共享全局变量
+            一个线程修改全局变量，其他线程可以看到修改后的结果
+        e.g.
+            from threading import Thread
+
+            num = 1
+
+            def work():
+                global num
+                num = 0
+
+            if __name__ == "__main__":
+                t = Thread(target=work)
+                t.start()
+                t.join()
+
+                print(num)		# 0
+        风险
+            多个线程同时修改同一个变量，可能出现结果错误
+            共享数据越多，越需要注意加锁和数据一致性
+    线程锁
+        作用
+            保证同一时刻只有一个线程进入某段关键代码
+            常用于保护共享变量的修改操作
+        Lock
+            acquire()获取锁
+            release()释放锁
+            推荐使用with lock自动获取和释放
+            e.g.
+                from threading import Thread, Lock
+
+                total = 0
+                lock = Lock()
+
+                def add_many():
+                    global total
+                    for _ in range(100000):
+                        with lock:
+                            total += 1
+
+                if __name__ == "__main__":
+                    t1 = Thread(target=add_many)
+                    t2 = Thread(target=add_many)
+
+                    t1.start()
+                    t2.start()
+                    t1.join()
+                    t2.join()
+
+                    print(total)		# 200000
+        注意
+            锁会降低并发程度
+            只在必须保护共享数据时加锁
+            加锁范围应尽量小
+    守护线程
+        概念
+            守护线程会在主线程结束时跟着结束
+            守护线程不适合执行必须完整完成的任务
+        设置方式
+            t.daemon = True
+            必须在t.start()之前设置
+        e.g.
+            from threading import Thread
+            import time
+
+            def task():
+                time.sleep(2)
+                print("子线程执行结束")
+
+            if __name__ == "__main__":
+                t = Thread(target=task)
+                t.daemon = True
+                t.start()
+
+                print("主线程结束")		# 主线程结束
+    多线程执行IO任务
+        场景
+            多个任务都在等待网络、磁盘等IO结果
+            多线程可以让等待过程重叠
+        e.g.
+            from threading import Thread
+            import time
+
+            def download(url):
+                print("开始请求:", url)
+                time.sleep(2)
+                print("请求结束:", url)
+
+            if __name__ == "__main__":
+                start = time.time()
+                urls = ["https://example.com/1", "https://example.com/2", "https://example.com/3"]
+                thread_list = []
+
+                for url in urls:
+                    t = Thread(target=download, args=(url,))
+                    t.start()
+                    thread_list.append(t)
+
+                for t in thread_list:
+                    t.join()
+
+                print("总耗时:", round(time.time() - start, 2))
+    线程池
+        概念
+            线程池会提前维护一组线程，任务提交给线程池后，由线程池分配线程执行
+        优点
+            任务完成后线程不会立刻销毁，可以继续处理下一个任务
+            减少频繁创建和销毁线程的成本
+            可以限制最大并发数量
+            代码比手动管理大量Thread对象更清晰
+        推荐模块
+            concurrent.futures.ThreadPoolExecutor
+        e.g.
+            from concurrent.futures import ThreadPoolExecutor
+            import time
+
+            def download(url):
+                print("开始请求:", url)
+                time.sleep(2)
+                return f"{url} done"
+
+            if __name__ == "__main__":
+                urls = ["https://example.com/1", "https://example.com/2", "https://example.com/3"]
+
+                with ThreadPoolExecutor(max_workers=3) as pool:
+                    result_list = list(pool.map(download, urls))
+
+                print(result_list)		# ['https://example.com/1 done', 'https://example.com/2 done', 'https://example.com/3 done']
+        e.g.
+            from concurrent.futures import ThreadPoolExecutor
+            import time
+
+            def download(url):
+                print("开始请求:", url)
+                time.sleep(2)
+                print(f"{url} done")
+
+            if __name__ == "__main__":
+                urls = ["https://example.com/1", "https://example.com/2", "https://example.com/3"]
+
+                thread_pool = ThreadPoolExecutor(max_workers=3)
+                for url in urls:
+                    thread_pool.submit(download, url)
+                
+                thread_pool.shutdown(wait = True)
+        注意
+            任务内部的print输出顺序仍然不固定
+            max_workers不是越大越好，过大可能导致请求过频、内存升高或被目标网站限制
+协程
+    常用函数
+        async def
+            定义协程函数
+        await
+            等待可等待对象完成
+            等待期间允许事件循环推进其他任务
+        asyncio.run()
+            运行异步程序的常用入口
+            会创建事件循环、运行协程并在结束后关闭事件循环
+        asyncio.create_task()
+            把协程对象封装成任务对象并安排执行
+        asyncio.gather()
+            并发等待多个可等待对象
+            返回结果顺序和传入顺序一致
+        asyncio.wait()
+            等待一组任务
+            返回已完成任务集合和未完成任务集合
+            注意传入的参数应是列表，前面无需加*
+        asyncio.sleep()
+            异步休眠
+            休眠期间不会阻塞事件循环
+        注意
+            asyncio.wait()更适合需要区分已完成任务和未完成任务的场景
+            asyncio.gather()更适合需要按传入顺序收集结果的场景
+    协程函数与协程对象
+        协程函数
+            使用async def定义的函数
+            调用协程函数时，函数体不会立即执行,调用协程函数会返回协程对象
+        协程对象
+            协程函数调用后得到的对象
+            协程对象必须被await、封装成任务或交给asyncio.run()运行
+            只创建协程对象但不等待，协程函数内部代码不会真正执行
+        e.g.
+            import asyncio
+
+            async def get_number():
+                return 100
+
+            async def main():
+                coro = get_number()
+                result = await coro
+                print(result)
+
+            asyncio.run(main())     # 100
+            其中
+                get_number是协程函数
+                get_number()返回协程对象
+                await get_number()才会等待协程执行并拿到返回值
+                协程对象不能长期创建后不处理，否则可能出现未等待协程的警告
+    await关键字
+        作用
+            等待一个可等待对象完成
+            等待期间当前协程可以暂停
+            事件循环可以去执行其他已经就绪的任务
+        位置
+            await只能写在async def函数内部
+            await后面必须是可等待对象
+        常见可等待对象
+            协程对象
+            任务对象
+            asyncio.sleep()返回的对象
+            aiohttp中response.text()、response.read()、response.json()返回的对象
+        不能直接await的对象
+            普通函数返回值
+            requests.get()返回的响应对象
+            time.sleep()返回的None
+        注意
+            await不是给所有耗时函数加上就能异步，被await的对象本身必须支持异步等待
+    asyncio.run(): 运行协程
+        e.g.
+            import asyncio
+
+            async def get_number():
+                return 100
+
+            async def main():
+                coro = get_number()
+                result = await coro
+                print(result)
+
+            asyncio.run(main())     # 100
+    asyncio.create_task(): 任务
+        概念
+            任务对象用于把协程安排到事件循环中并发执行，创建任务后，任务会被事件循环调度
+            任务可以被await等待，也可以绑定完成后的回调函数
+        常用方法
+            task.result()
+                获取任务返回值
+                任务未完成时调用会报错
+                任务内部抛出异常时，调用result()会重新抛出异常
+            task.cancel()
+                请求取消任务
+            e.g.
+                import asyncio
+
+                async def get_data():
+                    await asyncio.sleep(1)
+                    return "ok"
+
+                async def main():
+                    task = asyncio.create_task(get_data())
+                    result = await task
+                    print(result)		# ok
+
+                asyncio.run(main())
+    add_done_callback(): 回调函数
+        概念
+            回调函数是在任务完成后自动调用的函数
+            add_done_callback()可以给任务绑定回调函数，回调函数会接收任务对象作为唯一参数
+        作用
+            获取任务返回值
+            在任务完成后做解析、记录日志、保存状态等操作
+        e.g.
+            import asyncio
+
+            async def get_data():
+                await asyncio.sleep(1)
+                return "ok"
+
+            def parse_result(task):
+                result = task.result()
+                print("解析结果:", result)
+
+            async def main():
+                task = asyncio.create_task(get_data())
+                task.add_done_callback(parse_result)
+                await task
+
+            asyncio.run(main())
+        注意
+            回调函数必须接收一个参数，且参数就是绑定回调的任务对象
+            task.result()会在任务异常时重新抛出异常
+            简单场景中直接await任务或使用gather收集结果更清晰
+    asyncio.gather(): 多任务协程
+        流程
+            定义协程函数
+            在main协程中创建多个任务
+            使用asyncio.gather()统一等待
+            根据返回结果继续处理
+        e.g.
+            import asyncio
+
+            async def download(url):
+                await asyncio.sleep(1)
+                return f"{url} done"
+
+            async def main():
+                urls = [
+                    "https://example.com/1",
+                    "https://example.com/2",
+                    "https://example.com/3"
+                ]
+
+                task_list = []
+                for url in urls:
+                    task = asyncio.create_task(download(url))
+                    task_list.append(task)
+
+                result_list = await asyncio.gather(*task_list)      # * 表示解包，该行等价于await asyncio.gather(task_list[0], task_list[1], task_list[2])
+
+                print(result_list)		# ['https://example.com/1 done', 'https://example.com/2 done', 'https://example.com/3 done']
+
+            asyncio.run(main())
+        注意
+            gather返回结果顺序和传入任务顺序一致但任务内部的执行完成顺序不一定和创建顺序一致
+            不要在循环中创建一个任务后马上await它，否则会变成一个一个等待
+            一批请求不应每个请求都创建一个ClientSession，应共用一个ClientSession，会造成会话对象创建和关闭有成本，连接复用效果差等效果
+    aiohttp模块
+        概念
+            aiohttp是支持异步HTTP请求的第三方库，可以在asyncio事件循环中发送网络请求
+        基本流程
+            创建ClientSession对象
+            使用session.get()或session.post()发起请求
+            使用async with管理请求上下文
+            使用await response.text()等方法读取响应体
+            离开async with后自动释放响应资源
+        注意
+            aiohttp代理参数是proxy
+            requests代理参数是proxies
+            aiohttp读取响应体时需要await
+            aiohttp的ClientSession应尽量复用
+        常用属性和方法
+            response.status
+                响应状态码
+            response.url
+                最终请求地址
+            response.headers
+                响应头
+            await response.text()
+                解析HTML、普通文本时常用
+                获取字符串形式的响应体
+            await response.read()
+                下载图片、视频、压缩包等二进制内容时常用
+                获取字节形式的响应体
+            await response.json()
+                接口返回JSON数据时常用
+                前提是响应体本身必须是合法JSON
+                把JSON响应体转换为Python对象
+            response.raise_for_status()
+                状态码表示请求失败时抛出异常
+        e.g.
+            import asyncio
+            import aiohttp
+
+            async def fetch_text(session, url):
+                async with session.get(url=url) as response:
+                    response.raise_for_status()
+                    page_text = await response.text()
+                    return page_text
+
+            async def main():
+                url = "https://httpbin.org/html"
+                async with aiohttp.ClientSession() as session:
+                    page_text = await fetch_text(session, url)
+                    print(type(page_text))		# <class 'str'>
+
+            asyncio.run(main())
+            注意
+                async with session.get(url=url) as response是常用写法，不需要写成async with await session.get(...)
+    异步爬虫中的使用
+        基本流程
+            准备URL列表
+            创建一个main协程
+            在main中创建一个ClientSession
+            为每个URL创建任务
+            使用asyncio.gather()等待所有任务完成
+            对返回结果进行解析和保存
+        e.g.
+            import asyncio
+            import aiohttp
+            from lxml import etree
+
+            urls = [
+                "http://127.0.0.1:5000/bobo",
+                "http://127.0.0.1:5000/jay",
+                "http://127.0.0.1:5000/tom"
+            ]
+
+            async def fetch_text(session, url):
+                async with session.get(url=url) as response:
+                    response.raise_for_status()
+                    page_text = await response.text()
+                    return url, page_text
+
+            def parse_page(url, page_text):
+                tree = etree.HTML(page_text)
+                text_list = tree.xpath('//a[@id="feng"]/text()')
+                if not text_list:
+                    return url, None
+                return url, text_list[0].strip()
+
+            async def main():
+                async with aiohttp.ClientSession() as session:
+                    task_list = []
+                    for url in urls:
+                        task = asyncio.create_task(fetch_text(session, url))
+                        task_list.append(task)
+
+                    response_list = await asyncio.gather(*task_list)
+
+                for url, page_text in response_list:
+                    parse_result = parse_page(url, page_text)
+                    print(parse_result)
+
+            asyncio.run(main())
+    asyncio.Semaphore: 控制并发数量
+        e.g.
+            import asyncio
+            import aiohttp
+
+            async def fetch_text(session, url, semaphore):
+                async with semaphore:
+                    async with session.get(url=url) as response:
+                        response.raise_for_status()
+                        return await response.text()
+
+            async def main():
+                urls = [
+                    "https://example.com/1",
+                    "https://example.com/2",
+                    "https://example.com/3"
+                ]
+                semaphore = asyncio.Semaphore(2)
+
+                async with aiohttp.ClientSession() as session:
+                    task_list = [
+                        asyncio.create_task(fetch_text(session, url, semaphore))
+                        for url in urls
+                    ]
+                    result_list = await asyncio.gather(*task_list)
+                    print(len(result_list))		# 3
+
+            asyncio.run(main())
+    aiohttp.ClientTimeout: 超时限制
+        e.g.
+            import asyncio
+            import aiohttp
+
+            async def fetch_text(session, url):
+                try:
+                    async with session.get(url=url) as response:
+                        response.raise_for_status()
+                        return await response.text()
+                except asyncio.TimeoutError:
+                    print("请求超时")
+                except aiohttp.ClientResponseError as e:
+                    print("状态码错误", e.status)
+                except aiohttp.ClientError as e:
+                    print("请求失败", e)
+
+            async def main():
+                timeout = aiohttp.ClientTimeout(total=10)
+                async with aiohttp.ClientSession(timeout=timeout) as session:
+                    await fetch_text(session, "https://httpbin.org/delay/3")
+
+            asyncio.run(main())
+        注意
+            gather中任意任务抛出异常时，默认会把异常传给等待gather的协程
+            如果希望单个任务失败不影响收集其他结果，应在任务内部处理异常或使用return_exceptions=True
+    常见异常
+            asyncio.TimeoutError
+                请求超时
+            aiohttp.ClientResponseError
+                response.raise_for_status()检测到错误状态码
+            aiohttp.ClientConnectorError
+                连接目标失败
+            aiohttp.ClientError
+                aiohttp客户端异常的常见父类
+    排查流程
+        请求没有并发效果
+            检查协程内部是否用了time.sleep()
+            检查协程内部是否用了requests等同步库
+            检查是否在循环里创建任务后马上await
+            检查是否真正使用gather或wait统一等待多个任务
+        程序没有执行
+            检查是否调用asyncio.run(main())
+            检查协程对象是否被await或创建成任务
+        结果为空
+            检查请求url、请求方法、参数、请求头和Cookie
+            检查响应状态码
+            检查响应文本中是否真的包含目标数据
+            检查xpath表达式是否正确
+        任务报错后中断
+            在单个请求函数中捕获异常
+            或使用asyncio.gather(*tasks, return_exceptions=True)
+        访问过快被限制
+            降低并发数
+            增加合理等待
+异常处理
+    子线程和子进程中的异常不一定会像普通函数一样直接在主流程中表现
+    使用线程池或进程池时，应通过future.result()或map结果及时发现异常

@@ -1,0 +1,815 @@
+Pyppeteer
+    概念
+        Pyppeteer是Python第三方浏览器自动化库
+        Pyppeteer基于asyncio协程，常用方法大多需要配合await使用
+        Pyppeteer不是异步版Selenium，Pyppeteer和Selenium的API风格、底层通信方式、生态维护状态都不同
+    注意
+        浏览器自动化比普通HTTP请求成本更高，能用requests稳定获取接口数据时，不优先使用Pyppeteer
+        Pyppeteer当前维护不活跃，长期项目可以同时了解Playwright
+        学习阶段仍可用Pyppeteer理解浏览器自动化的基本过程
+环境安装
+    安装
+        pip install pyppeteer
+    Chromium
+        Pyppeteer默认使用Chromium，第一次运行时，如果本机没有可用的默认Chromium，Pyppeteer可能会自动下载
+        可以提前执行命令下载
+            pyppeteer-install
+        网络环境无法下载时，可以手动安装Chrome或Chromium，并通过executablePath指定浏览器程序路径
+    常见环境变量
+        PYPPETEER_HOME
+            指定Pyppeteer保存Chromium和临时用户数据的目录
+        PYPPETEER_DOWNLOAD_HOST
+            指定下载Chromium时使用的下载地址
+        PYPPETEER_CHROMIUM_REVISION
+            指定使用的Chromium版本
+基础流程
+    步骤
+        导入asyncio和launch
+        定义async协程函数
+        创建浏览器对象
+        创建页面对象
+        设置页面参数
+        打开目标页面或设置页面内容
+        等待目标元素、请求或页面状态
+        定位元素或获取页面源码
+        解析数据
+        关闭浏览器
+    e.g.
+        import asyncio
+        from lxml import etree
+        from pyppeteer import launch
+
+        async def main():
+            browser = await launch(headless=True)
+            page = await browser.newPage()
+
+            try:
+                await page.setContent("""
+                <html>
+                    <body>
+                        <h1>pyppeteer</h1>
+                    </body>
+                </html>
+                """)
+
+                page_text = await page.content()
+                tree = etree.HTML(page_text)
+                title = tree.xpath("//h1/text()")[0]
+                print(title)		# pyppeteer
+            finally:
+                await browser.close()
+
+        asyncio.run(main())
+    说明
+        launch()创建浏览器对象
+        newPage()创建页面对象
+        setContent()把HTML内容写入当前页面
+        content()获取当前页面文档内容
+        browser.close()关闭浏览器进程
+        使用try/finally可以保证异常出现时浏览器仍然被关闭
+浏览器对象
+    创建浏览器对象
+        launch()
+            启动浏览器并返回浏览器对象
+        e.g.
+            from pyppeteer import launch
+
+            browser = await launch(headless=True)
+    launch参数写法
+        字典写法
+            browser = await launch({"headless": True})
+        关键字写法
+            browser = await launch(headless=True)
+        两种写法都可以，其中关键字写法更符合Python书写习惯
+        常用参数
+            headless
+                是否使用无界面模式
+                默认通常为True
+                设置为False时会显示浏览器窗口
+            ignoreHTTPSErrors
+                是否忽略HTTPS证书错误
+                默认值为False
+            executablePath
+                指定Chrome或Chromium程序路径
+                不指定时使用Pyppeteer默认浏览器
+            devtools
+                是否自动打开开发者工具
+                devtools为True时会强制使用有界面模式
+            args
+                传给浏览器进程的启动参数
+            slowMo
+                将Pyppeteer操作放慢指定毫秒数
+                常用于调试观察
+            userDataDir
+                指定浏览器用户数据目录
+                可用于保留Cookie、本地存储和浏览器配置
+            dumpio
+                是否把浏览器进程输出打印到当前终端
+                常用于排查启动失败
+    关闭浏览器
+        await browser.close()
+页面对象
+    创建页面
+        page = await browser.newPage()
+            新建一个页面对象
+    获取所有页面
+        pages = await browser.pages()
+            获取当前浏览器中的页面列表
+    关闭页面
+        await page.close()
+            关闭当前页面
+    激活页面
+        await page.bringToFront()
+            将页面切换到前台
+页面访问
+    goto()
+        打开指定url
+        url需要包含协议
+        e.g.
+            response = await page.goto("https://example.com")
+    常用参数
+        timeout
+            最大导航等待时间，单位是毫秒
+            默认通常为30000
+            传入0表示不限制超时
+        waitUntil
+            控制页面导航完成的判断条件
+    waitUntil常用值
+        load
+            等待load事件触发
+        domcontentloaded
+            等待HTML文档解析完成
+        networkidle0
+            等待一段时间内没有网络连接
+        networkidle2
+            等待一段时间内不超过2个网络连接
+    e.g.
+        import asyncio
+        from pyppeteer import launch
+
+        async def main():
+            browser = await launch(headless=True)
+            page = await browser.newPage()
+
+            try:
+                response = await page.goto(
+                    "https://example.com",
+                    {"waitUntil": "domcontentloaded", "timeout": 30000}
+                )
+                print(response.status)		# 200
+            finally:
+                await browser.close()
+页面尺寸
+    setViewport()
+        设置页面视口大小
+        影响页面布局、截图范围和部分响应式页面结构
+    常用字段
+        width
+            页面宽度
+        height
+            页面高度
+        deviceScaleFactor
+            设备像素比，默认通常为1
+        isMobile
+            是否按移动端视口处理
+        hasTouch
+            是否支持触摸事件
+        isLandscape
+            是否横屏
+    e.g.
+        await page.setViewport({
+            "width": 1366,
+            "height": 768,
+            "deviceScaleFactor": 1
+        })
+    注意
+        无界面模式下也应明确设置视口大小
+        视口大小会影响元素是否可见、页面是否换行、是否出现移动端布局
+        不要把视口设置当成规避检测的方法
+页面等待
+    固定等待
+        await asyncio.sleep(n)
+            协程暂停n秒
+        await page.waitFor(2000)
+            等待2000毫秒
+    等待元素
+        waitForSelector()
+            等待CSS选择器匹配的元素出现
+        waitForXPath()
+            等待XPath匹配的元素出现
+        常用参数
+            visible
+                等待元素存在并可见
+            hidden
+                等待元素不存在或隐藏
+            timeout
+                最大等待时间，单位毫秒
+    e.g.
+        import asyncio
+        from pyppeteer import launch
+
+        async def main():
+            browser = await launch(headless=True)
+            page = await browser.newPage()
+
+            try:
+                await page.setContent("""
+                <html>
+                    <body>
+                        <div class="quote">hello</div>
+                    </body>
+                </html>
+                """)
+                quote = await page.waitForSelector(".quote", {"visible": True})
+                text = await quote.Jeval(":scope", "el => el.textContent.trim()")
+                print(text)		# hello
+            finally:
+                await browser.close()
+
+        asyncio.run(main())
+    等待函数
+        waitForFunction()
+            等待页面中的JavaScript函数返回真值
+        e.g.
+            await page.waitForFunction("() => document.title.length > 0")
+    等待导航
+        waitForNavigation()
+            等待页面跳转完成
+        点击触发跳转时，应把点击和等待导航同时启动
+        e.g.
+            await asyncio.gather(
+                page.waitForNavigation({"waitUntil": "domcontentloaded"}),
+                page.click("a")
+            )
+    等待请求或响应
+        waitForRequest()
+            等待指定请求出现
+        waitForResponse()
+            等待指定响应出现
+        e.g.
+            response = await page.waitForResponse(
+                lambda res: "/api/" in res.url and res.status == 200
+            )
+    易混淆点
+        waitForSelector默认只要求元素进入页面文档
+        等待可见元素时需要设置visible为True
+        等待页面打开完成和等待业务数据完成不是一回事
+        点击后如果会跳转，先创建等待导航任务，再执行点击
+元素定位
+    CSS选择器定位
+        querySelector()
+            返回第一个匹配元素
+            找不到返回None
+        querySelectorAll()
+            返回所有匹配元素组成的列表
+            找不到返回空列表
+    简写方法
+        J()
+            querySelector()的简写
+        JJ()
+            querySelectorAll()的简写
+        Jeval()
+            定位单个元素，并把元素交给JavaScript函数处理
+        JJeval()
+            定位多个元素，并把元素列表交给JavaScript函数处理
+    XPath定位
+        xpath()
+            执行XPath表达式
+            返回元素列表
+        Jx()
+            xpath()的简写
+    e.g.
+        import asyncio
+        from pyppeteer import launch
+
+        async def main():
+            browser = await launch(headless=True)
+            page = await browser.newPage()
+
+            try:
+                await page.setContent("""
+                <html>
+                    <body>
+                        <ul>
+                            <li class="item">a</li>
+                            <li class="item">b</li>
+                            <li class="item">c</li>
+                        </ul>
+                    </body>
+                </html>
+                """)
+
+                first_item = await page.J(".item")
+                item_list = await page.JJ(".item")
+                text = await first_item.Jeval(":scope", "el => el.textContent")
+
+                print(text)		# a
+                print(len(item_list))		# 3
+            finally:
+                await browser.close()
+
+        asyncio.run(main())
+    CSS选择器注意
+        #id值表示根据id定位
+        .类名表示根据class定位
+        标签名[属性名='属性值']表示根据属性定位
+        空格表示后代关系
+        >表示直接子级关系
+        querySelector和querySelectorAll使用CSS选择器，不使用XPath
+    XPath注意
+        //表示从当前文档任意位置查找
+        /表示从当前节点的直接子级查找
+        @用于匹配属性
+        text()用于匹配文本节点
+        contains()用于包含匹配
+        e.g.
+            title_list = await page.xpath("//h1[contains(text(), '标题')]")
+    返回值易混淆点
+        page.J()找不到返回None
+        page.JJ()找不到返回空列表
+        page.Jeval()找不到元素会报错
+        page.JJeval()适合直接返回提取后的普通数据
+        元素对象是浏览器页面中的节点引用，不是lxml节点
+
+节点交互
+    输入
+        page.type(selector, text, options)
+            根据选择器定位元素并输入内容
+        element.type(text, options)
+            对已有元素对象输入内容
+    点击
+        page.click(selector)
+            根据选择器定位元素并点击
+        element.click()
+            点击已有元素对象
+    悬停
+        page.hover(selector)
+        element.hover()
+    聚焦
+        page.focus(selector)
+        element.focus()
+    键盘
+        page.keyboard.press("Enter")
+        page.keyboard.type("内容")
+    鼠标
+        page.mouse.move(x, y)
+        page.mouse.down()
+        page.mouse.up()
+    e.g.
+        import asyncio
+        from pyppeteer import launch
+
+        async def main():
+            browser = await launch(headless=True)
+            page = await browser.newPage()
+
+            try:
+                await page.setContent("""
+                <html>
+                    <body>
+                        <input id="kw">
+                        <button id="btn">搜索</button>
+                    </body>
+                </html>
+                """)
+
+                await page.type("#kw", "python", {"delay": 50})
+                value = await page.Jeval("#kw", "el => el.value")
+                print(value)		# python
+            finally:
+                await browser.close()
+
+        asyncio.run(main())
+    注意
+        delay的单位是毫秒
+        page.type()会按字符触发键盘相关事件
+        click()会先定位元素，必要时滚动到可视区域，再点击元素中心位置
+        如果元素被遮挡、隐藏或已经被前端重新渲染，点击可能失败
+
+执行JavaScript
+    evaluate()
+        在当前页面执行JavaScript函数或表达式
+        可以返回字符串、数字、列表、字典等可序列化数据
+    evaluateHandle()
+        返回页面中的对象句柄
+        适合需要继续操作页面对象时使用
+    evaluateOnNewDocument()
+        在页面新文档创建时注入JavaScript函数
+        应在页面跳转前调用
+    e.g.
+        import asyncio
+        from pyppeteer import launch
+
+        async def main():
+            browser = await launch(headless=True)
+            page = await browser.newPage()
+
+            try:
+                await page.setContent("""
+                <html>
+                    <body>
+                        <p>one</p>
+                        <p>two</p>
+                    </body>
+                </html>
+                """)
+
+                count = await page.evaluate("() => document.querySelectorAll('p').length")
+                print(count)		# 2
+            finally:
+                await browser.close()
+
+        asyncio.run(main())
+    传参
+        Python变量不能直接在页面JavaScript中使用
+        需要通过evaluate()的额外参数传入
+        e.g.
+            keyword = "python"
+            result = await page.evaluate(
+                "(word) => word.toUpperCase()",
+                keyword
+            )
+            print(result)		# PYTHON
+    注意
+        evaluate()运行在浏览器页面环境
+        Python代码运行在Python解释器环境
+        两边变量作用域不同
+        JavaScript返回页面节点时，通常需要用evaluateHandle()
+        普通数据提取优先让JavaScript返回字符串、列表或字典
+
+获取页面数据
+    页面源码
+        page.content()
+            获取当前页面文档内容
+            返回浏览器当前文档中的HTML字符串
+        e.g.
+            page_text = await page.content()
+    元素文本
+        Jeval()
+            通过JavaScript读取元素内容
+        e.g.
+            text = await page.Jeval("h1", "el => el.textContent.trim()")
+    元素属性
+        e.g.
+            href = await page.Jeval("a", "el => el.href")
+    多元素文本
+        e.g.
+            text_list = await page.JJeval(
+                ".item",
+                "nodes => nodes.map(node => node.textContent.trim())"
+            )
+    与requests区别
+        requests获取的是服务器直接返回的响应内容
+        page.content()获取的是浏览器当前页面文档内容
+        浏览器后续接口返回的数据如果没有写入页面文档，page.content()里可能没有
+        页面中由canvas绘制的文字不是普通HTML文本
+        Shadow DOM中的内容不一定能直接通过page.content()拿到
+    数据获取建议
+        先判断数据真实来源
+        如果数据来自接口，优先分析接口请求
+        如果数据必须由浏览器交互后渲染，再考虑Pyppeteer
+        不要只因为浏览器页面能看到数据，就默认用页面源码解析
+
+截图
+    页面截图
+        page.screenshot()
+            对当前页面截图
+        e.g.
+            await page.screenshot({"path": "page.png"})
+    整页截图
+        e.g.
+            await page.screenshot({"path": "page.png", "fullPage": True})
+    元素截图
+        e.g.
+            button = await page.J("button")
+            await button.screenshot({"path": "button.png"})
+    注意
+        截图保存的是浏览器渲染后的视觉结果
+        普通文本提取不应优先依赖截图
+        文本优先使用接口响应、元素文本、属性或页面源码
+
+请求和响应
+    goto返回值
+        page.goto()通常返回主资源响应对象
+        响应对象可以读取status、ok、headers、url等信息
+    响应正文
+        await response.text()
+            获取文本响应体
+        await response.json()
+            获取JSON响应体
+        await response.buffer()
+            获取字节响应体
+    事件监听
+        request
+            页面发出请求时触发
+        response
+            页面收到响应时触发
+        requestfinished
+            请求完成时触发
+        requestfailed
+            请求失败时触发
+    e.g.
+        def show_response(response):
+            if "/api/" in response.url:
+                print(response.url)
+
+        page.on("response", show_response)
+    等待指定响应
+        e.g.
+            response = await page.waitForResponse(
+                lambda res: "/api/" in res.url and res.status == 200,
+                {"timeout": 30000}
+            )
+    注意
+        page.content()只能拿到页面文档
+        waitForResponse()可以等待页面发出的接口响应
+        如果目标数据来自接口响应，直接处理响应体通常比解析页面源码更稳定
+        响应状态码正常不等于业务数据一定成功
+
+请求拦截
+    setRequestInterception()
+        开启或关闭请求拦截
+        开启后可以放行、修改或终止请求
+    常见用途
+        过滤图片、字体、样式等资源以减少加载成本
+        观察页面请求
+        在测试场景中修改请求
+    e.g.
+        async def handle_request(req):
+            if req.resourceType in ["image", "font"]:
+                await req.abort()
+            else:
+                await req.continue_()
+
+        await page.setRequestInterception(True)
+        page.on("request", lambda req: asyncio.ensure_future(handle_request(req)))
+    注意
+        request.abort()和request.continue_()必须在开启请求拦截后使用
+        拦截请求可能影响页面功能
+        过滤资源时要确认目标数据不依赖被过滤的资源
+
+Cookie和存储
+    获取Cookie
+        await page.cookies()
+            获取当前页面相关Cookie
+        await page.cookies("https://example.com")
+            获取指定地址相关Cookie
+    设置Cookie
+        await page.setCookie({"name": "token", "value": "abc", "url": "https://example.com"})
+    删除Cookie
+        await page.deleteCookie({"name": "token", "url": "https://example.com"})
+    本地存储
+        读取
+            value = await page.evaluate("() => localStorage.getItem('token')")
+        写入
+            await page.evaluate("() => localStorage.setItem('token', 'abc')")
+    注意
+        Cookie有域名、路径、过期时间、安全属性等限制
+        设置Cookie前应先确认url或domain是否正确
+        登录状态不一定只由Cookie决定，也可能依赖本地存储、会话状态或服务端风控
+        userDataDir可以保留浏览器用户数据，但不等于永久稳定登录
+
+下拉框
+    select()
+        适用于HTML中的select标签
+        传入option的value值
+        返回已经选中的value列表
+    e.g.
+        import asyncio
+        from pyppeteer import launch
+
+        async def main():
+            browser = await launch(headless=True)
+            page = await browser.newPage()
+
+            try:
+                await page.setContent("""
+                <html>
+                    <body>
+                        <select id="city">
+                            <option value="bj">北京</option>
+                            <option value="sh">上海</option>
+                        </select>
+                    </body>
+                </html>
+                """)
+
+                value_list = await page.select("#city", "sh")
+                print(value_list)		# ['sh']
+            finally:
+                await browser.close()
+
+        asyncio.run(main())
+    注意
+        select()主要用于select标签
+        如果页面使用div模拟下拉框，需要按普通点击流程处理
+
+iframe
+    概念
+        iframe会在当前页面中嵌入另一个页面
+        主页面和iframe内部是不同的文档环境
+        目标元素在iframe内部时，需要进入对应Frame对象再定位
+    获取frame
+        page.frames
+            获取当前页面中的所有Frame对象
+        iframe_element.contentFrame()
+            通过iframe元素获取对应Frame对象
+    e.g.
+        iframe_tag = await page.J("iframe")
+        frame = await iframe_tag.contentFrame()
+        inner_text = await frame.Jeval("h1", "el => el.textContent.trim()")
+    注意
+        page.J()默认在主页面中定位
+        frame.J()在指定iframe文档中定位
+        找不到元素时要先确认元素是否位于iframe中
+        iframe自身也可能需要等待加载
+
+弹窗
+    原生弹窗
+        alert
+        confirm
+        prompt
+        beforeunload
+    监听方式
+        page.on("dialog", callback)
+    e.g.
+        import asyncio
+        from pyppeteer import launch
+
+        async def main():
+            browser = await launch(headless=True)
+            page = await browser.newPage()
+
+            async def handle_dialog(dialog):
+                print(dialog.message)
+                await dialog.accept()
+
+            page.on("dialog", lambda dialog: asyncio.ensure_future(handle_dialog(dialog)))
+
+            try:
+                await page.evaluate("() => alert('hello')")
+            finally:
+                await browser.close()
+
+        asyncio.run(main())
+    注意
+        浏览器原生弹窗不是普通DOM元素
+        页面中用div模拟的弹窗仍然用普通元素定位和点击处理
+        如果弹窗没有处理，后续页面操作可能被阻塞
+
+文件上传
+    uploadFile()
+        对input[type=file]元素上传文件
+    e.g.
+        file_input = await page.J("input[type='file']")
+        await file_input.uploadFile("/home/kali/Desktop/test.png")
+    注意
+        uploadFile()操作的是文件选择控件
+        如果页面把文件上传控件隐藏，需要先定位真实input标签
+        文件路径必须是本机真实存在的路径
+
+综合示例
+    获取JavaScript渲染后的页面数据
+        e.g.
+            import asyncio
+            from lxml import etree
+            from pyppeteer import launch
+
+            async def main():
+                browser = await launch(headless=True)
+                page = await browser.newPage()
+
+                try:
+                    await page.setViewport({"width": 1366, "height": 768})
+                    await page.goto(
+                        "https://quotes.toscrape.com/js/",
+                        {"waitUntil": "domcontentloaded", "timeout": 30000}
+                    )
+                    await page.waitForSelector(".quote", {"visible": True})
+
+                    page_text = await page.content()
+                    tree = etree.HTML(page_text)
+                    div_list = tree.xpath("//div[@class='quote']")
+                    print(len(div_list))		# 10
+                finally:
+                    await browser.close()
+
+            asyncio.run(main())
+    直接读取元素文本
+        e.g.
+            import asyncio
+            from pyppeteer import launch
+
+            async def main():
+                browser = await launch(headless=True)
+                page = await browser.newPage()
+
+                try:
+                    await page.setContent("""
+                    <html>
+                        <body>
+                            <div class="quote">
+                                <span class="text">hello</span>
+                            </div>
+                        </body>
+                    </html>
+                    """)
+
+                    text = await page.Jeval(".quote .text", "el => el.textContent.trim()")
+                    print(text)		# hello
+                finally:
+                    await browser.close()
+
+            asyncio.run(main())
+    点击后等待结果
+        e.g.
+            import asyncio
+            from pyppeteer import launch
+
+            async def main():
+                browser = await launch(headless=True)
+                page = await browser.newPage()
+
+                try:
+                    await page.setContent("""
+                    <html>
+                        <body>
+                            <button id="btn">加载</button>
+                            <div id="result"></div>
+                            <script>
+                                document.querySelector("#btn").onclick = () => {
+                                    document.querySelector("#result").textContent = "完成";
+                                };
+                            </script>
+                        </body>
+                    </html>
+                    """)
+
+                    await page.click("#btn")
+                    await page.waitForFunction(
+                        "() => document.querySelector('#result').textContent === '完成'"
+                    )
+                    text = await page.Jeval("#result", "el => el.textContent")
+                    print(text)		# 完成
+                finally:
+                    await browser.close()
+
+            asyncio.run(main())
+常见问题
+    浏览器启动失败
+        常见原因
+            Chromium没有下载成功
+            系统缺少浏览器运行依赖
+            executablePath路径错误
+            当前用户没有执行权限
+        处理
+            检查安装日志
+            尝试执行pyppeteer-install
+            指定本机Chrome或Chromium路径
+            开启dumpio查看浏览器进程输出
+    找不到元素
+        常见原因
+            选择器写错
+            元素还没加载出来
+            元素在iframe中
+            页面结构变化
+            元素位于Shadow DOM中
+        处理
+            检查选择器
+            使用waitForSelector()
+            检查iframe
+            打印page.content()确认页面当前内容
+    点击失败
+        常见原因
+            元素不可见
+            元素被遮挡
+            元素被前端重新渲染导致引用失效
+            点击触发跳转但没有等待导航
+        处理
+            等待元素可见
+            滚动到元素附近
+            重新定位元素
+            使用asyncio.gather()同时处理点击和导航等待
+    页面源码没有目标数据
+        常见原因
+            数据来自接口但没有写入页面文档
+            数据还没加载完成
+            数据在iframe中
+            数据绘制在canvas中
+            数据在Shadow DOM中
+        处理
+            等待目标元素或接口响应
+            分析开发者工具中的接口请求
+            直接读取元素文本或属性
+            不要只依赖page.content()
+    程序没有异步效果
+        常见原因
+            只创建了一个任务
+            在协程中调用了阻塞函数
+            没有使用await等待异步方法
+            把浏览器操作全部串行执行
+        处理
+            使用asyncio.create_task()创建多个任务
+            避免在协程中使用time.sleep()
+            使用await asyncio.sleep()
+            控制并发数量，避免同时打开过多页面
