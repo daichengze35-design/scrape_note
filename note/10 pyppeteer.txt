@@ -10,51 +10,6 @@
             指定下载Chromium时使用的下载地址
         PYPPETEER_CHROMIUM_REVISION
             指定使用的Chromium版本
-基础流程
-    步骤
-        导入asyncio和launch
-        定义async协程函数
-        创建浏览器对象
-        创建页面对象
-        设置页面参数
-        打开目标页面或设置页面内容
-        等待目标元素、请求或页面状态
-        定位元素或获取页面源码
-        解析数据
-        关闭浏览器
-    e.g.
-        import asyncio
-        from lxml import etree
-        from pyppeteer import launch
-
-        async def main():
-            browser = await launch(headless=True)
-            page = await browser.newPage()
-
-            try:
-                await page.setContent("""
-                <html>
-                    <body>
-                        <h1>pyppeteer</h1>
-                    </body>
-                </html>
-                """)
-
-                page_text = await page.content()
-                tree = etree.HTML(page_text)
-                title = tree.xpath("//h1/text()")[0]
-                print(title)		# pyppeteer
-            finally:
-                await browser.close()
-
-        asyncio.run(main())
-    说明
-        launch()创建浏览器对象
-        newPage()创建页面对象
-        setContent()把HTML内容写入当前页面
-        content()获取当前页面文档内容
-        browser.close()关闭浏览器进程
-        使用try/finally可以保证异常出现时浏览器仍然被关闭
 浏览器对象
     创建浏览器对象
         launch()
@@ -407,6 +362,7 @@
         e.g.
             button = await page.J("button")
             await button.screenshot({"path": "button.png"})
+
 请求和响应
     goto返回值
         page.goto()通常返回主资源响应对象
@@ -444,7 +400,6 @@
         waitForResponse()可以等待页面发出的接口响应
         如果目标数据来自接口响应，直接处理响应体通常比解析页面源码更稳定
         响应状态码正常不等于业务数据一定成功
-
 请求拦截
     setRequestInterception()
         开启或关闭请求拦截
@@ -482,11 +437,6 @@ Cookie和存储
             value = await page.evaluate("() => localStorage.getItem('token')")
         写入
             await page.evaluate("() => localStorage.setItem('token', 'abc')")
-    注意
-        Cookie有域名、路径、过期时间、安全属性等限制
-        设置Cookie前应先确认url或domain是否正确
-        登录状态不一定只由Cookie决定，也可能依赖本地存储、会话状态或服务端风控
-        userDataDir可以保留浏览器用户数据，但不等于永久稳定登录
 
 下拉框
     select()
@@ -571,22 +521,12 @@ iframe
                 await browser.close()
 
         asyncio.run(main())
-    注意
-        浏览器原生弹窗不是普通DOM元素
-        页面中用div模拟的弹窗仍然用普通元素定位和点击处理
-        如果弹窗没有处理，后续页面操作可能被阻塞
 
-文件上传
-    uploadFile()
-        对input[type=file]元素上传文件
+文件上传: uploadFile()
+    对input[type=file]元素上传文件
     e.g.
         file_input = await page.J("input[type='file']")
-        await file_input.uploadFile("/home/kali/Desktop/test.png")
-    注意
-        uploadFile()操作的是文件选择控件
-        如果页面把文件上传控件隐藏，需要先定位真实input标签
-        文件路径必须是本机真实存在的路径
-
+        await file_input.uploadFile("/home//Desktop/test.png")
 综合示例
     获取JavaScript渲染后的页面数据
         e.g.
@@ -675,29 +615,6 @@ iframe
 
             asyncio.run(main())
 常见问题
-    浏览器启动失败
-        常见原因
-            Chromium没有下载成功
-            系统缺少浏览器运行依赖
-            executablePath路径错误
-            当前用户没有执行权限
-        处理
-            检查安装日志
-            尝试执行pyppeteer-install
-            指定本机Chrome或Chromium路径
-            开启dumpio查看浏览器进程输出
-    找不到元素
-        常见原因
-            选择器写错
-            元素还没加载出来
-            元素在iframe中
-            页面结构变化
-            元素位于Shadow DOM中
-        处理
-            检查选择器
-            使用waitForSelector()
-            检查iframe
-            打印page.content()确认页面当前内容
     点击失败
         常见原因
             元素不可见
@@ -721,14 +638,3 @@ iframe
             分析开发者工具中的接口请求
             直接读取元素文本或属性
             不要只依赖page.content()
-    程序没有异步效果
-        常见原因
-            只创建了一个任务
-            在协程中调用了阻塞函数
-            没有使用await等待异步方法
-            把浏览器操作全部串行执行
-        处理
-            使用asyncio.create_task()创建多个任务
-            避免在协程中使用time.sleep()
-            使用await asyncio.sleep()
-            控制并发数量，避免同时打开过多页面

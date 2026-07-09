@@ -407,24 +407,16 @@ Cookie
     删除Cookie
         driver.delete_cookie("name")
         driver.delete_all_cookies()
-    注意
-        添加Cookie前需要先打开对应域名页面\
 js注入绕过selennium检测
-    from selenium.webdriver import ActionChains
-    from selenium.webdriver import Chrome
-  
-    driver = Chrome('./chromedriver',options=chrome_options)
-    #Selenium在打开任何页面之前，先运行这个Js文件。
-    with open('./stealth.min.js') as f:
-        js = f.read()
-    # 进行js注入，绕过检测
-    # execute_cdp_cmd执行cdp命令（在浏览器开发者工具中执行相关指令，完成相关操作）
-    # Page.addScriptToEvaluateOnNewDocument执行脚本
-    driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
-        "source": js
-    })
-    
-    driver.get("https://www.example.com")
+    github仓库地址: https://github.com/berstend/puppeteer-extra/tree/master/packages/extract-stealth-evasions
+    绕过方式:
+        with open('./stealth.min.js') as f:
+            js = f.read()
+        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+            "source": js
+        })
+        
+        driver.get("https://www.example.com")
 页面数据获取方式
     直接读取元素文本
         element.text
@@ -434,10 +426,6 @@ js注入绕过selennium检测
             获取输入框当前值
     读取链接
         element.get_attribute("href")
-    获取页面源码后解析
-        driver.page_source
-    通过开发者工具抓接口
-        如果数据来自接口，优先分析接口请求
     注意
         element.text通常只返回可见文本，隐藏文本可能需要读取属性或页面源码
 常见报错
