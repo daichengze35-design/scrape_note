@@ -1,20 +1,8 @@
-Pyppeteer
-    概念
-        Pyppeteer是Python第三方浏览器自动化库
-        Pyppeteer基于asyncio协程，常用方法大多需要配合await使用
-        Pyppeteer不是异步版Selenium，Pyppeteer和Selenium的API风格、底层通信方式、生态维护状态都不同
-    注意
-        浏览器自动化比普通HTTP请求成本更高，能用requests稳定获取接口数据时，不优先使用Pyppeteer
-        Pyppeteer当前维护不活跃，长期项目可以同时了解Playwright
-        学习阶段仍可用Pyppeteer理解浏览器自动化的基本过程
 环境安装
     安装
         pip install pyppeteer
     Chromium
         Pyppeteer默认使用Chromium，第一次运行时，如果本机没有可用的默认Chromium，Pyppeteer可能会自动下载
-        可以提前执行命令下载
-            pyppeteer-install
-        网络环境无法下载时，可以手动安装Chrome或Chromium，并通过executablePath指定浏览器程序路径
     常见环境变量
         PYPPETEER_HOME
             指定Pyppeteer保存Chromium和临时用户数据的目录
@@ -75,37 +63,37 @@ Pyppeteer
             from pyppeteer import launch
 
             browser = await launch(headless=True)
-    launch参数写法
-        字典写法
-            browser = await launch({"headless": True})
-        关键字写法
-            browser = await launch(headless=True)
-        两种写法都可以，其中关键字写法更符合Python书写习惯
-        常用参数
-            headless
-                是否使用无界面模式
-                默认通常为True
-                设置为False时会显示浏览器窗口
-            ignoreHTTPSErrors
-                是否忽略HTTPS证书错误
-                默认值为False
-            executablePath
-                指定Chrome或Chromium程序路径
-                不指定时使用Pyppeteer默认浏览器
-            devtools
-                是否自动打开开发者工具
-                devtools为True时会强制使用有界面模式
-            args
-                传给浏览器进程的启动参数
-            slowMo
-                将Pyppeteer操作放慢指定毫秒数
-                常用于调试观察
-            userDataDir
-                指定浏览器用户数据目录
-                可用于保留Cookie、本地存储和浏览器配置
-            dumpio
-                是否把浏览器进程输出打印到当前终端
-                常用于排查启动失败
+        launch参数写法
+            字典写法
+                browser = await launch({"headless": True})
+            关键字写法
+                browser = await launch(headless=True)
+            两种写法都可以，其中关键字写法更符合Python书写习惯
+            常用参数
+                headless
+                    是否使用无界面模式
+                    默认通常为True
+                    设置为False时会显示浏览器窗口
+                ignoreHTTPSErrors
+                    是否忽略HTTPS证书错误
+                    默认值为False
+                executablePath
+                    指定Chrome或Chromium程序路径
+                    不指定时使用Pyppeteer默认浏览器
+                devtools
+                    是否自动打开开发者工具
+                    devtools为True时会强制使用有界面模式
+                args
+                    传给浏览器进程的启动参数
+                slowMo
+                    将Pyppeteer操作放慢指定毫秒数
+                    常用于调试观察
+                userDataDir
+                    指定浏览器用户数据目录
+                    可用于保留Cookie、本地存储和浏览器配置
+                dumpio
+                    是否把浏览器进程输出打印到当前终端
+                    常用于排查启动失败
     关闭浏览器
         await browser.close()
 页面对象
@@ -121,12 +109,7 @@ Pyppeteer
     激活页面
         await page.bringToFront()
             将页面切换到前台
-页面访问
-    goto()
-        打开指定url
-        url需要包含协议
-        e.g.
-            response = await page.goto("https://example.com")
+打开页面: goto()
     常用参数
         timeout
             最大导航等待时间，单位是毫秒
@@ -134,15 +117,15 @@ Pyppeteer
             传入0表示不限制超时
         waitUntil
             控制页面导航完成的判断条件
-    waitUntil常用值
-        load
-            等待load事件触发
-        domcontentloaded
-            等待HTML文档解析完成
-        networkidle0
-            等待一段时间内没有网络连接
-        networkidle2
-            等待一段时间内不超过2个网络连接
+            waitUntil常用值
+                load
+                    等待load事件触发
+                domcontentloaded
+                    等待HTML文档解析完成
+                networkidle0
+                    等待一段时间内没有网络连接
+                networkidle2
+                    等待一段时间内不超过2个网络连接
     e.g.
         import asyncio
         from pyppeteer import launch
@@ -159,11 +142,8 @@ Pyppeteer
                 print(response.status)		# 200
             finally:
                 await browser.close()
-页面尺寸
-    setViewport()
-        设置页面视口大小
-        影响页面布局、截图范围和部分响应式页面结构
-    常用字段
+页面尺寸调整: setViewport()
+    常用参数
         width
             页面宽度
         height
@@ -182,16 +162,12 @@ Pyppeteer
             "height": 768,
             "deviceScaleFactor": 1
         })
-    注意
-        无界面模式下也应明确设置视口大小
-        视口大小会影响元素是否可见、页面是否换行、是否出现移动端布局
-        不要把视口设置当成规避检测的方法
 页面等待
     固定等待
         await asyncio.sleep(n)
             协程暂停n秒
-        await page.waitFor(2000)
-            等待2000毫秒
+        await page.waitFor(n)
+            页面等待n毫秒
     等待元素
         waitForSelector()
             等待CSS选择器匹配的元素出现
@@ -263,6 +239,12 @@ Pyppeteer
         querySelectorAll()
             返回所有匹配元素组成的列表
             找不到返回空列表
+    XPath定位
+        xpath()
+            执行XPath表达式
+            返回元素列表
+        Jx()
+            xpath()的简写
     简写方法
         J()
             querySelector()的简写
@@ -272,12 +254,6 @@ Pyppeteer
             定位单个元素，并把元素交给JavaScript函数处理
         JJeval()
             定位多个元素，并把元素列表交给JavaScript函数处理
-    XPath定位
-        xpath()
-            执行XPath表达式
-            返回元素列表
-        Jx()
-            xpath()的简写
     e.g.
         import asyncio
         from pyppeteer import launch
@@ -309,28 +285,11 @@ Pyppeteer
                 await browser.close()
 
         asyncio.run(main())
-    CSS选择器注意
-        #id值表示根据id定位
-        .类名表示根据class定位
-        标签名[属性名='属性值']表示根据属性定位
-        空格表示后代关系
-        >表示直接子级关系
-        querySelector和querySelectorAll使用CSS选择器，不使用XPath
-    XPath注意
-        //表示从当前文档任意位置查找
-        /表示从当前节点的直接子级查找
-        @用于匹配属性
-        text()用于匹配文本节点
-        contains()用于包含匹配
-        e.g.
-            title_list = await page.xpath("//h1[contains(text(), '标题')]")
     返回值易混淆点
         page.J()找不到返回None
         page.JJ()找不到返回空列表
         page.Jeval()找不到元素会报错
-        page.JJeval()适合直接返回提取后的普通数据
-        元素对象是浏览器页面中的节点引用，不是lxml节点
-
+        page.JJeval()找不到传入空列表
 节点交互
     输入
         page.type(selector, text, options)
@@ -355,37 +314,11 @@ Pyppeteer
         page.mouse.move(x, y)
         page.mouse.down()
         page.mouse.up()
-    e.g.
-        import asyncio
-        from pyppeteer import launch
-
-        async def main():
-            browser = await launch(headless=True)
-            page = await browser.newPage()
-
-            try:
-                await page.setContent("""
-                <html>
-                    <body>
-                        <input id="kw">
-                        <button id="btn">搜索</button>
-                    </body>
-                </html>
-                """)
-
-                await page.type("#kw", "python", {"delay": 50})
-                value = await page.Jeval("#kw", "el => el.value")
-                print(value)		# python
-            finally:
-                await browser.close()
-
-        asyncio.run(main())
     注意
         delay的单位是毫秒
         page.type()会按字符触发键盘相关事件
         click()会先定位元素，必要时滚动到可视区域，再点击元素中心位置
         如果元素被遮挡、隐藏或已经被前端重新渲染，点击可能失败
-
 执行JavaScript
     evaluate()
         在当前页面执行JavaScript函数或表达式
@@ -396,6 +329,16 @@ Pyppeteer
     evaluateOnNewDocument()
         在页面新文档创建时注入JavaScript函数
         应在页面跳转前调用
+    传参
+        Python变量不能直接在页面JavaScript中使用
+        需要通过evaluate()的额外参数传入
+        e.g.
+            keyword = "python"
+            result = await page.evaluate(
+                "(word) => word.toUpperCase()",
+                keyword
+            )
+            print(result)		# PYTHON
     e.g.
         import asyncio
         from pyppeteer import launch
@@ -420,23 +363,11 @@ Pyppeteer
                 await browser.close()
 
         asyncio.run(main())
-    传参
-        Python变量不能直接在页面JavaScript中使用
-        需要通过evaluate()的额外参数传入
-        e.g.
-            keyword = "python"
-            result = await page.evaluate(
-                "(word) => word.toUpperCase()",
-                keyword
-            )
-            print(result)		# PYTHON
     注意
         evaluate()运行在浏览器页面环境
         Python代码运行在Python解释器环境
         两边变量作用域不同
         JavaScript返回页面节点时，通常需要用evaluateHandle()
-        普通数据提取优先让JavaScript返回字符串、列表或字典
-
 获取页面数据
     页面源码
         page.content()
@@ -461,15 +392,8 @@ Pyppeteer
     与requests区别
         requests获取的是服务器直接返回的响应内容
         page.content()获取的是浏览器当前页面文档内容
-        浏览器后续接口返回的数据如果没有写入页面文档，page.content()里可能没有
         页面中由canvas绘制的文字不是普通HTML文本
         Shadow DOM中的内容不一定能直接通过page.content()拿到
-    数据获取建议
-        先判断数据真实来源
-        如果数据来自接口，优先分析接口请求
-        如果数据必须由浏览器交互后渲染，再考虑Pyppeteer
-        不要只因为浏览器页面能看到数据，就默认用页面源码解析
-
 截图
     页面截图
         page.screenshot()
@@ -483,11 +407,6 @@ Pyppeteer
         e.g.
             button = await page.J("button")
             await button.screenshot({"path": "button.png"})
-    注意
-        截图保存的是浏览器渲染后的视觉结果
-        普通文本提取不应优先依赖截图
-        文本优先使用接口响应、元素文本、属性或页面源码
-
 请求和响应
     goto返回值
         page.goto()通常返回主资源响应对象
