@@ -1,0 +1,778 @@
+Web API 加密逻辑分析
+    第 7 阶段：浏览器运行时追踪
+
+    学习目标
+        能区分同步调用栈、浏览器任务、微任务和异步因果栈
+        能记录一次用户操作从事件触发到请求、密码学操作或存储操作的时间线
+        能区分 JavaScript API 调用、浏览器请求、Service Worker 处理和缓存命中
+        能记录 fetch 与 XMLHttpRequest 的调用、响应头、Body 读取和 Promise 延续
+        能记录 Web Crypto 操作的算法参数、输入字节边界、输出类型和 Promise 状态
+        能区分 localStorage、sessionStorage、IndexedDB、Cache Storage、Cookie 和内存状态
+        能识别 iframe、Dedicated Worker、Shared Worker 和 Service Worker 的上下文边界
+        能追踪动态 import 的加载、模块求值和导出函数调用
+        能识别框架事件代理、批处理、延迟更新、hydration 和开发模式重复执行
+        能把第 6 阶段的 asset、chunk、module、runtime 映射到运行时上下文和异步边
+        能把第 5 阶段的 CALL-ID、STAGE-ID 和 LAYER-ID 映射到运行时 API 操作
+        能建立不包含秘密值、不修改运行时的被动追踪记录
+
+    本阶段不学习
+        不提供真实站点、靶场、练习或实战任务
+        不使用 Hook、Monkey Patch、函数替换、代理注入或自定义拦截器
+        不使用 Local Overrides、Snippets 或修改后的 bundle
+        不向页面或生产代码添加日志、埋点、debugger 或追踪代码
+        不执行未知 eval 或 Function 构造器文本
+        不修改、阻断、重放、伪造或自动发送请求
+        不从 CryptoKey、Storage、Cookie、IndexedDB、Cache Storage 或页面对象中提取秘密
+        不读取或复制未脱敏的 Token、密码、会话材料和长期凭据
+        不绕过 CORS、认证、授权、验证码、风控、反调试、自校验、付费限制或 DRM
+        不改变定时器、时间、堆栈、console、函数源码或浏览器状态
+        不把 DevTools 的观察行为写成应用本身的运行逻辑
+        不把浏览器内部线程、调度器或原生实现当作页面可以直接证明的事实
+        不进入媒体协议、扩展协议和 DRM 细节
+
+    本阶段与前六阶段的关系
+        第 0 阶段
+            提供授权、范围和证据边界
+        第 2 阶段
+            提供请求采集、CAPTURE-ID 和 Network 时间线
+        第 3 阶段
+            提供只读断点、调用栈、暂停现场和 DEBUG-SESSION-ID
+        第 4 阶段
+            提供 Web Crypto、编码和密码学原语分类
+        第 5 阶段
+            提供 EXECUTION-ID、CALL-ID、STAGE-ID、LAYER-ID 和签名数据流
+        第 6 阶段
+            提供 BUILD-ID、GENERATED-ASSET-ID、CHUNK-OBSERVED-ID、MODULE-LOCAL-ID、RUNTIME-ID 和 Source Map 状态
+        第 7 阶段
+            只补充执行时间线、上下文和异步边
+            不重新定义密码学算法
+            不用请求结果代替函数调用证据
+            不用 DevTools 显示的异步祖先代替实际运行栈
+
+    运行时追踪的定义
+        被动追踪
+            使用页面原本存在的行为
+            使用浏览器 DevTools 已提供的断点、面板和记录
+            不注入新代码
+            不改变对象、函数、请求或存储
+        运行时证据
+            发生了什么
+            发生在哪个浏览器上下文
+            发生在什么时间线位置
+            由哪个生成位置触发
+            产生了哪个后续异步边
+        运行时追踪不等于
+            重新执行函数
+            复制参数后调用 API
+            修改返回值
+            代替页面发起请求
+            证明服务端内部实现
+
+    版本和结论范围
+        每次追踪至少绑定
+            BUILD-ID
+            页面部署标识
+            浏览器名称和完整版本
+            操作系统和设备类别
+            CAPTURE-ID
+            DEBUG-SESSION-ID
+            EXECUTION-ID
+            浏览器上下文
+            DevTools 版本或浏览器版本
+            追踪面板和断点设置
+        浏览器会影响
+            任务调度
+            定时器节流
+            缓存行为
+            隐私分区
+            Storage 可见性
+            Service Worker 生命周期
+            DevTools 栈显示
+        框架会影响
+            事件代理
+            状态批处理
+            渲染时机
+            开发模式重复执行
+            hydration
+            错误边界
+        版本结论规则
+            观察到的行为只绑定当前 BUILD-ID 和浏览器环境
+            不能把一次页面操作写成所有页面操作都相同
+            不能把一个浏览器的调度顺序写成跨浏览器保证
+            未能区分浏览器实现与页面行为时记录 UNKNOWN
+
+    运行时证据等级
+        UNKNOWN
+            当前没有足够证据区分多个执行解释
+        CANDIDATE
+            只有名称、时间邻近、initiator 或静态调用关系
+        OBSERVED
+            在同一 EXECUTION-ID 中观察到事件、调用或结果
+        ESTABLISHED
+            观察结果已与上下文、生成位置和异步边绑定
+            关键替代解释已被排除或单独保留
+        VERIFIED
+            还有当前标准、构建元数据或独立重复观察支持
+        INFERRED
+            由多个证据推导但没有直接暂停或调用证据
+            必须与 OBSERVED 分开记录
+        记录原则
+            运行时结论和构建结论分别评级
+            一条时间线不能自动提升算法、服务端或密钥结论
+
+    浏览器上下文的最小模型
+        CONTEXT-ID
+            分析者为一个可区分执行环境建立的本地编号
+            不是浏览器向页面公开的稳定 ID
+        Window 上下文
+            包含 Window、Document、JavaScript Realm 和页面脚本
+        iframe 上下文
+            有独立 Window、Document、Realm、脚本加载和事件传播范围
+            同源不等于共享同一个全局对象
+        Worker 上下文
+            有独立全局作用域和脚本执行环境
+            通过消息或端口与其他上下文通信
+        Service Worker 上下文
+            有独立生命周期
+            可以参与 fetch、缓存和消息事件
+            可能被终止后再次启动
+        浏览器扩展隔离世界
+            可能与页面脚本使用不同 Realm 或权限边界
+            不属于本阶段内部实现追踪范围
+        浏览器内部实现
+            网络线程、渲染线程、原生加密实现和存储后端不直接等于页面可见调用
+
+    上下文表的基本字段
+        CONTEXT-ID：<CONTEXT-ID>
+        类型：<WINDOW-IFRAME-DEDICATED-WORKER-SHARED-WORKER-SERVICE-WORKER-OTHER>
+        父上下文：<PARENT-CONTEXT-ID-OR-NONE>
+        Origin 状态：<SAME-ORIGIN-CROSS-ORIGIN-OPAQUE-UNKNOWN>
+        URL 或脚本标识：<REDACTED-URL-OR-SOURCE-LABEL>
+        BUILD-ID：<BUILD-ID>
+        GENERATED-ASSET-ID：<GENERATED-ASSET-ID-OR-UNKNOWN>
+        创建时间：<TIME>
+        销毁或失联时间：<TIME-OR-UNKNOWN>
+        是否仍可调试：<YES-NO-UNKNOWN>
+        Source Map 状态：<SOURCE-MAP-STATUS>
+        证据等级：<LEVEL>
+        未知项：<UNKNOWNS>
+
+    Window、Document 和 Realm
+        Window
+            提供页面脚本可见的窗口对象和 Web API 入口
+        Document
+            表示当前文档和 DOM 事件目标集合
+        Realm
+            提供一组独立的内置对象、全局环境和对象身份
+        对象身份边界
+            不同 iframe 的 Array、Promise、Error 和函数原型可能不同
+            同名构造器不能只凭名称判断来自同一个 Realm
+        追踪要求
+            记录对象所属 CONTEXT-ID
+            记录跨上下文传递是结构化复制、Transferable 还是消息引用
+            不把同源对象和跨 Realm 对象合并
+
+    iframe
+        独立内容
+            独立 Window
+            独立 Document
+            独立脚本和模块记录
+            独立事件循环观察范围
+        同源 iframe
+            可以在授权范围内通过 DOM 或 Window 接口交互
+            仍需为 iframe 单独建立 CONTEXT-ID
+        跨源 iframe
+            受 Same-Origin Policy 和 WindowProxy 限制
+            页面脚本不能把跨源对象当作普通同源对象读取
+            消息通信需要记录 origin 和 targetOrigin 约束
+        资源证据
+            iframe 的 HTML、JS、CSS、Source Map 和请求单独编号
+            不能把顶层页面的 BUILD-ID 自动套给另一个部署
+        事件证据
+            事件可能在 iframe 内部触发
+            父页面监听消息不等于父页面直接执行了子页面函数
+
+    Dedicated Worker
+        建立
+            由页面创建独立 Worker 上下文
+            Worker 脚本有自己的 asset、模块和调用栈
+        通信
+            Worker 对象与 worker_global_scope 通过消息通信
+            message、messageerror 和 close 等结果分别记录
+        不能直接访问
+            页面 DOM
+            页面同步调用栈
+        追踪边界
+            页面创建 Worker 的调用是一个 CALL-ID
+            Worker 内部处理是另一个 CONTEXT-ID
+            postMessage 是 ASYNC-EDGE-ID 的候选
+        Worker 终止
+            终止后原调用栈不能继续使用
+            新启动的同类脚本需要新的上下文记录
+
+    Shared Worker
+        特征
+            可能被多个页面上下文连接
+            通过 MessagePort 区分连接方
+        记录要求
+            WORKER-ID
+            PORT-ID
+            SENDER-CONTEXT-ID
+            RECEIVER-CONTEXT-ID
+            连接建立和关闭时间
+        限制
+            不能把一个端口的消息归因到所有页面
+            不能把同一脚本文本当作同一执行实例
+
+    Service Worker
+        生命周期候选
+            install
+            activate
+            fetch
+            message
+            push 或其他事件（若当前环境存在）
+        重要边界
+            Service Worker 不属于页面 Window 内存
+            Service Worker 可以返回 Cache Storage 中的 Response
+            Service Worker 可以合成 Response 或转发请求
+            Service Worker 可能在请求之间停止并重新启动
+        证据要求
+            页面 fetch 调用
+            Service Worker fetch 事件
+            Cache Storage 操作
+            网络请求或无网络响应
+            Response body 读取
+            分别记录时间和上下文
+        禁止
+            通过注销、替换或修改 Service Worker 改变观察结果
+            清空缓存以制造不同分支
+            强制跳过 fetch 事件
+
+    事件循环和任务的层级
+        同步调用栈
+            当前 JavaScript 执行段中的函数帧
+            同步返回或抛出后该栈段结束
+        任务
+            浏览器从某个任务源取出的可执行工作单元
+            可能来自用户事件、定时器、网络、消息或其他宿主事件
+        微任务
+            在微任务检查点运行的 Promise reaction、queueMicrotask 或类似工作
+        渲染机会
+            浏览器可能在适合的位置安排更新渲染
+            具体时机不是页面脚本可完全控制的全局队列
+        异步因果栈
+            DevTools 可能把注册点与后续回调关联展示
+            它是调试器提供的因果信息，不等于一个连续的同步栈
+
+    任务的记录原则
+        TASK-ID
+            分析者为一次任务观察建立的本地编号
+        任务来源
+            DOM 事件
+            定时器
+            网络事件
+            消息事件
+            模块或资源事件
+            其他来源
+        必须记录
+            来源上下文
+            注册位置或 initiator
+            实际开始时间
+            实际结束时间
+            同步调用栈
+            产生的微任务
+            产生的后续异步边
+        不得推断
+            所有任务源共享一个全局 FIFO 队列
+            所有任务都能跨浏览器比较精确顺序
+            任务编号是浏览器提供的永久标识
+
+    微任务
+        常见来源
+            Promise reaction
+            await 后续代码
+            queueMicrotask
+            MutationObserver 回调
+        执行边界
+            微任务通常在宿主规定的微任务检查点运行
+            一个微任务可以继续产生新的微任务
+            微任务队列过长可能延迟渲染和其他任务
+        记录要求
+            MICROTASK-ID
+            产生它的 Promise、await 或 API
+            注册位置
+            实际执行位置
+            是否产生新的微任务
+            是否发生异常或 rejection
+        重要区分
+            queueMicrotask 不是 setTimeout(0)
+            Promise reaction 不是当前同步栈的下一帧
+            微任务顺序不能替代所有任务源的全局顺序
+
+    事件分发
+        浏览器事件
+            用户输入、资源、网络或生命周期事件由宿主触发
+            事件监听器通常在事件分发过程中执行
+        dispatchEvent
+            可以在当前同步调用栈中同步触发事件分发
+            不能只凭事件名称判断其任务边界
+        事件传播
+            capture
+            target
+            bubble
+        事件代理
+            框架可能只在根节点或文档节点注册监听器
+            业务处理可能通过内部分派器进入组件代码
+        记录要求
+            EVENT-ID
+            target CONTEXT-ID
+            target 类型
+            传播阶段
+            注册位置
+            实际处理位置
+            是否由框架代理
+            后续 CALL-ID 和 ASYNC-EDGE-ID
+
+    Promise 状态与延续
+        状态
+            pending
+            fulfilled
+            rejected
+        记录内容
+            Promise 创建位置
+            resolve 或 reject 来源
+            then、catch、finally 或 await 注册位置
+            reaction 实际执行位置
+            rejection 是否被处理
+            是否形成 unhandled rejection
+        不同阶段
+            Promise 创建不等于完成
+            Promise fulfilled 不等于 Body 已读
+            reaction 注册不等于 reaction 已执行
+            reaction 执行不等于业务函数已经返回最终值
+        异步栈
+            DevTools 可能显示注册点作为异步祖先
+            Source Map 可能改变显示的函数名和位置
+            异步栈可能被截断、合并、关闭或受优化影响
+        记录字段
+            ASYNC-EDGE-ID
+            上游 CALL-ID 或 PAUSE-ID
+            下游 reaction 位置
+            Promise 状态
+            DevTools 是否显示因果链
+            直接证据或推断
+
+    async/await
+        await 之前
+            属于当前同步执行段
+            当前函数可以在 await 处挂起
+        await 之后
+            作为 Promise 延续执行
+            通常不保留完整的普通同步调用帧
+        追踪要求
+            分别记录 await 前 CALL-ID
+            记录 Promise 或异步 API 来源
+            记录 await 后新的 CALL-ID 或暂停位置
+            记录异常是在哪一段抛出
+        常见误判
+            把 await 后代码当作同一栈连续返回
+            把异步祖先当作当前栈帧
+            把同一函数名称出现两次合并成一次执行
+
+    Promise 组合
+        Promise.all
+            输入项可以并发完成
+            结果数组按输入顺序组织
+            不能用完成顺序代替结果顺序
+        Promise.race
+            先完成的结果决定外层 Promise
+            其他输入仍可能继续运行
+        Promise.allSettled
+            同时保留 fulfilled 和 rejected 的结果记录
+        追踪原则
+            每个子 Promise 建立独立 ASYNC-EDGE-ID
+            外层 Promise 建立新的关联记录
+            共享一个 STAGE-ID 不代表是同一个 Promise
+
+    定时器和动画
+        需要记录的 API
+            setTimeout
+            setInterval
+            clearTimeout
+            clearInterval
+            requestAnimationFrame
+            cancelAnimationFrame
+        其他消息任务
+            MessageChannel
+            postMessage
+            BroadcastChannel
+            scheduler.postTask（当前浏览器支持时）
+        记录字段
+            TIMER-ID 或 SCHEDULER-ID
+            注册位置
+            计划延迟或周期
+            实际回调时间
+            页面可见性
+            是否取消
+            回调上下文
+            是否发生暂停、节流或录制扰动
+        限制
+            setTimeout(0) 不是立即执行
+            setInterval 不是固定精度时钟
+            后台页面、隐藏标签页和省电策略可能节流
+            requestAnimationFrame 的回调不是屏幕已经完成绘制的证明
+
+    MessageChannel、postMessage 和 BroadcastChannel
+        MessageChannel
+            创建一对 MessagePort
+            消息通过端口进入接收方上下文
+        Window.postMessage
+            可以在 Window 上下文之间发送结构化数据
+            必须记录 targetOrigin 或等价限制
+        Worker.postMessage
+            连接页面和 Worker 上下文
+            需要记录发送端和接收端
+        BroadcastChannel
+            允许同一频道相关上下文接收消息
+            不应把频道消息归因给单一调用者
+        记录内容
+            MESSAGE-ID
+            SENDER-CONTEXT-ID
+            RECEIVER-CONTEXT-ID 或频道范围
+            注册位置
+            发送位置
+            接收位置
+            消息事件类型
+            脱敏后的数据类型和大小
+            Transferable 类型
+            接收者是否仍存在
+        边界
+            消息到达不表示接收者已完成业务处理
+            结构化复制不保留普通对象身份
+            Transferable 可能改变发送方对象状态
+
+    运行时时间线表
+        EVENT-ID：<EVENT-ID>
+        TASK-ID：<TASK-ID-OR-NONE>
+        MICROTASK-ID：<MICROTASK-ID-OR-NONE>
+        ASYNC-EDGE-ID：<ASYNC-EDGE-ID-OR-NONE>
+        CONTEXT-ID：<CONTEXT-ID>
+        注册位置：<GENERATED-ASSET-ID-LINE-COLUMN>
+        实际开始时间：<TIME>
+        实际结束时间：<TIME>
+        来源：<DOM-TIMER-NETWORK-MESSAGE-MODULE-OTHER>
+        同步调用栈：<FRAME-SUMMARY>
+        DevTools 异步祖先：<ASYNC-ANCESTOR-OR-NOT-SHOWN>
+        观察结果：<OBSERVATION>
+        时间扰动：<NONE-PAUSE-THROTTLING-RECORDING-UNKNOWN>
+        证据等级：<LEVEL>
+        未知项：<UNKNOWNS>
+
+    fetch 追踪的阶段
+        Request 形成
+            method、URL、Headers、Body 和 signal 等输入对象形成
+            Body 可能是字符串、ArrayBuffer、TypedArray、Blob、FormData 或流
+        fetch 调用
+            JavaScript 创建 fetch Promise
+            记录调用位置和当前 CONTEXT-ID
+        Service Worker 或缓存处理
+            请求可能被 Service Worker 事件接收
+            可能直接命中 HTTP cache 或其他浏览器缓存
+        网络或合成响应
+            可能发生实际网络请求
+            也可能由 Service Worker 或缓存返回 Response
+        Response headers 可用
+            fetch Promise 通常在 Response 可用时 fulfilled
+            不等于 Body 已完整取得或读取
+        Response body 读取
+            json、text、arrayBuffer、blob 或流读取形成后续异步边
+        Promise 延续
+            解析、业务判断、错误处理和下一次 API 调用分别记录
+
+    fetch 的关键边界
+        fetch Promise fulfilled
+            通常表示响应对象可用
+            HTTP 404 或 500 仍可能得到 fulfilled 的 Response
+            需要单独记录 response.ok、status 和业务错误
+        Body 读取
+            response.json() 可能在解析阶段失败
+            response.arrayBuffer() 可能在读取阶段失败
+            Body 只能按其锁定和消费状态使用
+            一次读取失败不自动等于请求没有发送
+        AbortController
+            signal 可能在请求或读取过程中触发取消
+            Promise 可能以 AbortError 拒绝
+            取消时间和请求失败时间分开记录
+        缓存
+            缓存命中时可能没有网络往返
+            Network 面板显示和页面 Promise 时间线必须分开
+        Service Worker
+            可以返回缓存 Response
+            可以合成 Response
+            可以转发到网络
+            可以在页面请求前后改变可见路径
+        CORS
+            浏览器可能阻止脚本读取 Response
+            脚本可见失败不等于服务器没有收到请求
+
+    fetch 记录表
+        REQUEST-OBSERVED-ID：<REQUEST-OBSERVED-ID>
+        BUILD-ID：<BUILD-ID>
+        EXECUTION-ID：<EXECUTION-ID>
+        CONTEXT-ID：<CONTEXT-ID>
+        Request 创建位置：<GENERATED-ASSET-ID-LINE-COLUMN>
+        fetch 调用位置：<GENERATED-ASSET-ID-LINE-COLUMN>
+        method：<REDACTED-METHOD>
+        URL 结构：<REDACTED-URL-QUERY-SECRET-VALUES>
+        Headers 摘要：<REDACTED-HEADER-NAMES-AND-SAFE-METADATA>
+        Body 类型：<TYPE>
+        Body 长度：<LENGTH-OR-UNKNOWN>
+        Body 读取阶段：<NOT-READ-READING-COMPLETE-FAILED-UNKNOWN>
+        Initiator：<INITIATOR>
+        Service Worker 状态：<NOT-OBSERVED-OBSERVED-UNKNOWN>
+        缓存状态：<NETWORK-CACHE-SERVICE-WORKER-UNKNOWN>
+        Response headers 时间：<TIME-OR-UNKNOWN>
+        Body 开始时间：<TIME-OR-NONE>
+        Body 结束时间：<TIME-OR-NONE>
+        Promise 状态：<PENDING-FULFILLED-REJECTED>
+        关联 CALL-ID：<CALL-ID-LIST>
+        关联 STAGE-ID：<STAGE-ID-LIST>
+        证据等级：<LEVEL>
+
+    fetch Body 的安全记录
+        可以记录
+            类型
+            长度
+            是否已消费
+            Content-Type
+            解析阶段
+            脱敏后的结构摘要
+        不记录
+            未脱敏 Body
+            Cookie、Authorization、Token 或会话材料
+            通过读取 Body 额外制造的新执行
+        读取限制
+            不在暂停时调用 response.json()
+            不在暂停时调用 response.text()
+            不在暂停时调用 response.arrayBuffer()
+            不展开可能触发 getter、流读取或代理行为的对象
+        结论
+            没有读取 Body 不能写成 Body 不存在
+            读取失败不能直接写成网络请求失败
+
+    XMLHttpRequest 生命周期
+        常见状态
+            UNSENT
+            OPENED
+            HEADERS_RECEIVED
+            LOADING
+            DONE
+        常见操作
+            open
+            setRequestHeader
+            send
+            abort
+            timeout
+            responseType
+            response 读取
+        常见事件
+            readystatechange
+            load
+            error
+            abort
+            timeout
+            progress
+            loadend
+        记录原则
+            记录实际出现的 readyState 和事件顺序
+            不把常见顺序写成跨浏览器绝对保证
+            send 调用不等于网络已完成
+            load 事件不等于业务解析成功
+            response 读取和 JSON 解析应单独记录
+            同一个 XHR 对象多次 open 不能自动合并为一次请求
+
+    XHR 记录表
+        REQUEST-OBSERVED-ID：<REQUEST-OBSERVED-ID>
+        XHR 对象本地编号：<XHR-LOCAL-ID>
+        CONTEXT-ID：<CONTEXT-ID>
+        open 位置：<POSITION>
+        method：<REDACTED-METHOD>
+        URL 结构：<REDACTED-URL-QUERY-SECRET-VALUES>
+        Header 设置位置：<POSITION-OR-NONE>
+        send 位置：<POSITION>
+        readyState 序列：<OBSERVED-SEQUENCE>
+        事件序列：<OBSERVED-SEQUENCE>
+        Service Worker 状态：<STATUS>
+        缓存状态：<STATUS>
+        responseType：<TYPE-OR-UNKNOWN>
+        response 读取位置：<POSITION-OR-NONE>
+        失败原因：<ERROR-ABORT-TIMEOUT-PARSE-OTHER-UNKNOWN>
+        关联 CALL-ID：<CALL-ID-LIST>
+        证据等级：<LEVEL>
+
+    fetch、XHR 与 Network 的连接
+        JavaScript 调用位置
+            记录 fetch、open、send 或其他页面 API 调用
+        浏览器请求记录
+            记录 Request、响应、Timing、Initiator 和缓存状态
+        Service Worker
+            记录 fetch 事件和返回 Response 的来源
+        预检
+            CORS 预检可能由浏览器自动发起
+            不一定存在对应的页面 fetch 调用
+        重定向
+            最终请求可能与初始 Request 的 URL、方法或凭据状态不同
+            每个可观察请求建立独立 REQUEST-OBSERVED-ID 或关联链
+        失败和取消
+            DNS、连接、TLS、CORS、HTTP、解析、Abort 和超时分别记录
+        结论边界
+            网络请求出现不等于业务逻辑成功
+            业务逻辑执行不等于服务器已收到请求
+            Network 解析视图不等于原始签名输入字节
+
+    其他浏览器发起的请求
+        可能来源
+            HTML 导航
+            script、module、link 和 image
+            CSS 资源
+            video、audio 或其他媒体资源
+            sendBeacon
+            keepalive 请求
+            Service Worker 转发
+            浏览器预加载
+        追踪要求
+            不要只在 fetch/XHR 断点中寻找所有请求
+            用 Network initiator 和资源类型补充来源
+            把页面 API 调用与浏览器资源加载分开
+        边界
+            预加载不证明模块已经求值
+            资源下载不证明业务函数已经调用
+            sendBeacon 的完成反馈不等于页面拥有完整响应
+
+    Web Crypto API 的操作分类
+        摘要
+            crypto.subtle.digest
+        签名与验证
+            crypto.subtle.sign
+            crypto.subtle.verify
+        加密与解密
+            crypto.subtle.encrypt
+            crypto.subtle.decrypt
+        密钥生成和导入
+            crypto.subtle.generateKey
+            crypto.subtle.importKey
+            crypto.subtle.exportKey
+        密钥派生
+            crypto.subtle.deriveKey
+            crypto.subtle.deriveBits
+        密钥包装
+            crypto.subtle.wrapKey
+            crypto.subtle.unwrapKey
+        随机值
+            crypto.getRandomValues
+            crypto.randomUUID
+        记录原则
+            API 名称只是操作候选
+            算法参数、密钥类型、输入字节和输出封装必须另行记录
+
+    Web Crypto 的同步与异步边界
+        subtle 方法
+            通常返回 Promise
+            需要记录调用时刻和 Promise 延续
+        getRandomValues
+            同步填充给定的 TypedArray
+            需要记录视图类型、byteOffset 和 byteLength
+            不把随机源内部实现写成页面可直接证明的线程行为
+        randomUUID
+            同步返回字符串
+            不等于签名、摘要或会话认证
+        CryptoKey
+            是受保护的密钥对象
+            只记录已可见的非秘密元数据
+            不调用 exportKey 尝试取得密钥材料
+        Promise rejection
+            算法不支持
+            参数类型错误
+            key usage 不匹配
+            密钥类型不匹配
+            不安全上下文
+            不可导出的 CryptoKey
+            这些失败分别记录
+
+    Web Crypto 参数表
+        CRYPTO-OP-ID：<CRYPTO-OP-ID>
+        BUILD-ID：<BUILD-ID>
+        EXECUTION-ID：<EXECUTION-ID>
+        CONTEXT-ID：<CONTEXT-ID>
+        API：<DIGEST-SIGN-VERIFY-ENCRYPT-DECRYPT-OTHER>
+        调用位置：<GENERATED-ASSET-ID-LINE-COLUMN>
+        算法名称：<ALGORITHM-NAME>
+        算法参数：<REDACTED-SAFE-METADATA>
+        密钥类型：<SECRET-OPAQUE-CRYPTO-KEY-TYPE>
+        key usages：<USAGE-NAMES-IF-SAFE>
+        extractable：<YES-NO-UNKNOWN>
+        输入类型：<BUFFER-SOURCE-TYPE>
+        输入 byteOffset：<OFFSET-OR-REDACTED>
+        输入 byteLength：<LENGTH>
+        输入摘要：<LOCAL-REDACTED-DIGEST-OR-NOT-STORED>
+        Promise 状态：<PENDING-FULFILLED-REJECTED>
+        输出类型：<ARRAY-BUFFER-BOOLEAN-CRYPTO-KEY-OTHER>
+        输出 byteLength：<LENGTH-OR-NONE>
+        输出封装：<HEX-BASE64-BYTES-OBJECT-OTHER>
+        关联 STAGE-ID：<STAGE-ID>
+        关联 LAYER-ID：<LAYER-ID>
+        证据等级：<LEVEL>
+        未知项：<UNKNOWNS>
+
+    Web Crypto 算法参数边界
+        digest
+            没有密钥参数
+            不能仅凭 API 名称称为 HMAC 或数字签名
+        sign
+            需要同时记录算法、密钥类型、key usages 和输入字节
+            输出格式不能凭经验假定为 DER、裸连接或固定长度
+        verify
+            true 或 false 是验证结果
+            不等于页面已经生成签名
+        AES-GCM
+            iv、additionalData、tagLength 等参数必须分别记录
+            不把 iv 自动称为密钥或签名
+        ECDSA、RSA 或其他算法
+            参数结构和输出编码受 Web Crypto 规范及实现影响
+            不以常见库默认值替代实际观察
+        deriveKey、deriveBits
+            记录派生目标、长度、salt、info 或等效参数类别
+            不记录秘密材料
+
+    Web Crypto 运行时链
+        业务输入
+            记录来源类别和脱敏摘要
+        字节视图
+            记录类型、offset、length 和编码来源
+        Crypto API 调用
+            记录 CRYPTO-OP-ID 和同步调用栈
+        Promise 延续
+            记录 ASYNC-EDGE-ID、完成状态和后续调用
+        输出封装
+            记录编码、截断、拼接或字段放置
+        请求关联
+            通过同一 EXECUTION-ID 连接到 REQUEST-OBSERVED-ID
+        不能跨执行拼接
+            一个执行的 Crypto 输出不能与另一个执行的请求字段直接合并
+
+    Web Crypto 观察限制
+        可以观察
+            已在调用栈或 DevTools 对象预览中出现的安全元数据
+            API 名称和非秘密算法参数
+            输入输出类型和长度
+            Promise 状态和错误类别
+        不可以做
+            调用 exportKey 获取秘密
+            修改 extractable 或 key usages
+            替换 CryptoKey
+            重放 sign、encrypt 或 derive 调用
+            把输出复制到新请求中
+        结论
+            CryptoKey 不可见不表示没有密钥
+            页面可见参数不一定包含底层实现的全部内部状态
+

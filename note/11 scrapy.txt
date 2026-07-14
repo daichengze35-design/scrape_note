@@ -1,58 +1,8 @@
-Scrapy
-    概念
-        Scrapy是Python第三方爬虫框架
-        Scrapy用于发送请求、调度请求、解析响应、提交数据、持久化存储和扩展请求响应处理流程
-        Scrapy适合结构比较清晰、页面数量较多、需要统一管理请求和数据流的爬虫项目
-        Scrapy底层基于异步网络模型，请求调度和下载可以并发执行
-        Scrapy不会自动执行JavaScript
-        页面中必须由JavaScript渲染后才出现的数据，优先先判断是否有接口数据
-        如果目标数据只能通过浏览器运行后得到，可以结合Selenium、Pyppeteer或Playwright处理
-    使用场景
-        需要爬取多页列表数据
-        需要从列表页进入详情页继续提取数据
-        需要统一处理数据清洗、保存、去重
-        需要统一设置请求头、代理、Cookie、下载延迟和并发
-        需要下载图片、文件等媒体资源
-    不优先使用的场景
-        只请求一两个接口即可拿到数据
-        页面交互很重，并且没有稳定接口可用
-        目标数据必须登录后人工操作才能取得
-        只是写一个很短的临时测试请求
-    学习重点
-        项目结构
-        爬虫类
-        请求对象
-        响应对象
-        选择器解析
-        数据对象
-        管道
-        配置文件
-        中间件
-        CrawlSpider
-
-环境安装
-    安装
-        pip install scrapy
-    Python版本
-        当前Scrapy官方文档要求Python 3.10及以上
-        如果安装失败，应先确认Python版本、pip版本和系统依赖
-    验证安装
-        scrapy version
-    常见问题
-        pip不是当前Python环境的pip
-        虚拟环境没有激活
-        Windows缺少构建依赖或包版本不兼容
-        网络环境无法连接包索引
-    注意
-        项目开发建议使用虚拟环境
-        不同课程中的安装要求可能对应旧版本Scrapy
-        学习时优先以当前环境实际安装版本和官方文档为准
-
+安装
+    pip install scrapy
 基本命令
     创建项目
         scrapy startproject 项目名称
-    进入项目目录
-        cd 项目名称
     创建普通爬虫文件
         scrapy genspider 爬虫名称 起始域名或地址
     创建CrawlSpider爬虫文件
@@ -67,38 +17,20 @@ Scrapy
         scrapy crawl后面写的是爬虫类的name，不是文件名
         genspider后面的域名参数会生成allowed_domains和start_urls，可以按实际需要修改
         start_urls中的地址需要包含协议
-
 项目结构
-    创建项目后常见结构
-        项目文件夹
-            scrapy.cfg
-            项目包
-                __init__.py
-                items.py
-                middlewares.py
-                pipelines.py
-                settings.py
-                spiders
-                    __init__.py
-    scrapy.cfg
-        项目配置入口
-        通常不需要修改
-    items.py
-        定义要在项目中传递的数据字段
-    middlewares.py
-        编写爬虫中间件和下载中间件
-    pipelines.py
-        编写数据管道
-    settings.py
-        编写项目配置
-    spiders
-        存放爬虫文件
-
-settings常用配置
+    项目文件夹
+        scrapy.cfg                  项目配置入口，通常不需要修改
+        项目包
+            __init__.py             
+            items.py                定义要在项目中传递的数据字段
+            middlewares.py          编写爬虫中间件和下载中间件
+            pipelines.py            编写数据管道
+            settings.py             编写项目配置
+            spiders
+                __init__.py         存放爬虫文件
+settings.py 常用配置
     ROBOTSTXT_OBEY
-        是否遵守robots协议
-        默认项目模板通常为True
-        是否关闭必须结合授权范围和站点规则判断
+        是否遵守robots协议，默认项目模板为True
     USER_AGENT
         设置默认请求头中的User-Agent
     LOG_LEVEL
@@ -112,12 +44,7 @@ settings常用配置
         默认请求头
     ITEM_PIPELINES
         开启并配置管道优先级
-    注意
-        不要只靠修改User-Agent判断请求一定等同浏览器访问
-        日志等级设置为ERROR会隐藏很多调试信息
-        初学调试阶段可以先保留INFO或DEBUG
-
-普通爬虫类
+__init__.py 普通爬虫类
     基础结构
         e.g.
             import scrapy
@@ -131,14 +58,9 @@ settings常用配置
                 def parse(self, response):
                     print(response.url)
     name
-        爬虫名称
-        同一个项目中不能重复
-        运行爬虫时使用该名称
+        爬虫名称，同一个项目中不能重复
     allowed_domains
         限制爬虫允许请求的域名范围
-        写域名，不要写协议
-        如果手动请求的地址不在该范围内，可能会被过滤
-        学习阶段不确定时可以先注释，确认请求范围后再添加
     start_urls
         起始请求地址列表
         默认由start_requests读取并发起GET请求
@@ -149,7 +71,6 @@ settings常用配置
     注意
         parse方法中可以解析数据，也可以继续生成新的请求
         parse不是只能返回数据，也可以yield请求对象或item对象
-
 响应对象
     常用属性和方法
         response.url
@@ -164,8 +85,10 @@ settings常用配置
             字节形式的响应体
         response.xpath()
             使用XPath解析响应内容
+            ！！！返回selector对象！！！
         response.css()
             使用CSS选择器解析响应内容
+            ！！！返回selector对象！！！
         response.json()
             将JSON响应体转换为Python对象
         response.follow()
@@ -174,11 +97,6 @@ settings常用配置
             获取请求中通过meta传递的数据
         response.cb_kwargs
             获取请求中通过cb_kwargs传递给回调函数的数据
-    注意
-        response.json()要求响应体本身是合法JSON
-        response.text不一定代表页面已经执行过JavaScript
-        Element面板中看到的内容不一定存在于response.text
-
 选择器解析
     Selector对象
         Scrapy的xpath和css返回选择器列表
@@ -189,13 +107,6 @@ settings常用配置
             没有匹配结果时返回None
         getall()
             获取所有匹配结果组成的列表
-        extract_first()
-            get()的旧常见写法
-        extract()
-            getall()的旧常见写法
-    建议
-        新代码优先使用get()和getall()
-        读旧代码时需要认识extract_first()和extract()
     e.g.
         import scrapy
 
@@ -210,27 +121,25 @@ settings常用配置
 
                 print(title)
                 print(href_list)
-    局部解析
-        先定位重复数据块
-        再从每个数据块内部提取字段
-        e.g.
-            def parse(self, response):
-                card_list = response.xpath("//div[@class='card']")
-
-                for card in card_list:
-                    title = card.xpath("./h2/text()").get()
-                    href = card.xpath("./a/@href").get()
-                    print(title, href)
-    易混淆点
-        在循环里继续解析当前节点时，通常使用./开头
-        //会查找当前节点下所有后代，写错时容易拿到不属于当前数据块的内容
-        get()可能返回None，使用strip()前要先判断
-        页面结构复杂时不要长期依赖浏览器复制出的绝对XPath
-
-数据对象
+终端导出
     作用
-        item用于封装爬虫解析出的结构化数据
-        item会从爬虫提交给管道
+        直接把爬虫yield/return出来的数据导出到文件
+    命令
+        scrapy crawl 爬虫名称 -o data.JSON
+    支持格式
+        JSON
+        JSON Lines
+        CSV
+        XML
+        pickle
+        marshal
+    特点
+        使用简单
+        适合临时保存结构化数据
+        不适合复杂清洗、数据库写入和多目标存储
+    注意
+        导出的是爬虫回调中yield/return出来的数据，不会保存print数据
+数据对象
     定义字段
         e.g.
             import scrapy
@@ -252,47 +161,7 @@ settings常用配置
                 item["detail_url"] = response.url
 
                 yield item
-    注意
-        item字段名应该和items.py中定义的字段一致
-        简单项目也可以直接yield字典
-        如果项目中需要统一管道处理，使用item更清晰
-
-终端导出
-    作用
-        直接把爬虫yield出来的数据导出到文件
-    命令
-        scrapy crawl 爬虫名称 -o data.json
-        scrapy crawl 爬虫名称 -o data.csv
-        scrapy crawl 爬虫名称 -o data.jl
-    支持格式
-        JSON
-        JSON Lines
-        CSV
-        XML
-        pickle
-        marshal
-    特点
-        使用简单
-        适合临时保存结构化数据
-        不适合复杂清洗、数据库写入和多目标存储
-    注意
-        导出的是爬虫回调中yield出来的数据
-        如果只print数据，不会被终端导出保存
-
 管道
-    作用
-        接收爬虫yield出来的item或字典
-        可以清洗数据
-        可以验证字段
-        可以去重
-        可以写入文件或数据库
-        可以把item继续传给下一个管道
-    基础管道
-        e.g.
-            class DemoPipeline:
-                def process_item(self, item, spider):
-                    print(item)
-                    return item
     process_item()
         每接收到一个item就调用一次
         必须返回item或抛出异常
@@ -306,6 +175,7 @@ settings常用配置
     文件管道示例
         e.g.
             class TextPipeline:
+                fp = None
                 def open_spider(self, spider):
                     self.fp = open("books.txt", mode="w", encoding="utf-8")
 
@@ -327,11 +197,6 @@ settings常用配置
         数字越小，越先执行
         多个管道会按优先级依次接收item
         前一个管道如果不return item，后面的管道不会继续接收该item
-    注意
-        open_spider和close_spider的第二个参数通常命名为spider
-        不建议在类属性中直接创建数据库连接
-        数据库连接更适合放在open_spider中创建，在close_spider中关闭
-
 MySQL管道
     安装
         pip install pymysql
