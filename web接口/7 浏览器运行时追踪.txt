@@ -29,6 +29,11 @@ Web API 加密逻辑分析
         不把 DevTools 的观察行为写成应用本身的运行逻辑
         不把浏览器内部线程、调度器或原生实现当作页面可以直接证明的事实
         不进入媒体协议、扩展协议和 DRM 细节
+        观察扰动修正
+            “不改变”表示不主动修改应用语义状态、调度参数或浏览器设置
+            DevTools 暂停和 Performance 录制仍可能扰动时间线
+            这些观察扰动必须记录，不能声称追踪过程绝对无扰动
+            不在同一 RUNTIME-TRACE-ID 中切换缓存、节流或 Service Worker 绕过设置
 
     本阶段与前六阶段的关系
         第 0 阶段
@@ -101,6 +106,39 @@ Web API 加密逻辑分析
             不能把一个浏览器的调度顺序写成跨浏览器保证
             未能区分浏览器实现与页面行为时记录 UNKNOWN
 
+    前置术语与本地 ID
+        CORS
+            全称为 Cross-Origin Resource Sharing
+            表示浏览器依据请求模式、响应 Header 和 Fetch 规则判断脚本能否取得跨源响应
+        XHR
+            全称为 XMLHttpRequest
+            表示 XMLHttpRequest 请求和事件 API
+        HTTP cache
+            表示浏览器 HTTP 缓存与重新验证机制
+            不等于 Cache Storage
+        Cache Storage
+            表示 Cache API 管理的 Request 与 Response 存储
+            常与 Service Worker 配合，但不是 HTTP cache
+        Transferable
+            表示在结构化序列化过程中可以执行转移步骤的对象类别
+            转移不是结构化复制之外的第二套消息格式
+        WORKER-ID
+            Worker 或 Service Worker 实例的本地编号
+        PORT-ID
+            MessagePort 或 Shared Worker 连接端口的本地编号
+        TIMER-ID
+            setTimeout 或 setInterval 注册实例的本地编号
+        XHR-LOCAL-ID
+            一个 XMLHttpRequest 对象在当前 CONTEXT-ID 中的本地编号
+        TRANSACTION-ID
+            一个 IndexedDB transaction 的本地编号
+        API-OPERATION-REF
+            指向 REQUEST-OBSERVED-ID、CRYPTO-OP-ID、STORAGE-OP-ID 或 MODULE-EVAL-ID 中恰好一种
+            它是联合引用字段，不创建新的 OPERATION-ID 身份
+        阅读顺序
+            先理解本表，再阅读各 API 章节
+            完整字段在后文“本章运行时证据实体”中统一列出
+
     运行时证据等级
         UNKNOWN
             当前没有足够证据区分多个执行解释
@@ -119,6 +157,11 @@ Web API 加密逻辑分析
         记录原则
             运行时结论和构建结论分别评级
             一条时间线不能自动提升算法、服务端或密钥结论
+        证据模型修正
+            正式证据等级仍只有 UNKNOWN、CANDIDATE、OBSERVED、ESTABLISHED、VERIFIED
+            INFERRED 不是第六个或更高的证据等级
+            CONCLUSION-SOURCE 单独记录 DIRECT-OBSERVATION 或 INFERENCE
+            一个 INFERENCE 仍需从五级证据等级中选择置信等级
 
     浏览器上下文的最小模型
         CONTEXT-ID
@@ -178,6 +221,11 @@ Web API 加密逻辑分析
             独立 Document
             独立脚本和模块记录
             独立事件循环观察范围
+            事件循环修正
+                此处“独立”只表示 iframe 需要独立 CONTEXT-ID 和证据归属
+                不表示每个 iframe 必然独占一个 event loop
+                多个 Window 可能在同一 agent 或 agent cluster 范围共享事件循环
+                是否共享不能仅凭 iframe 身份推断
         同源 iframe
             可以在授权范围内通过 DOM 或 Window 接口交互
             仍需为 iframe 单独建立 CONTEXT-ID
@@ -196,9 +244,16 @@ Web API 加密逻辑分析
         建立
             由页面创建独立 Worker 上下文
             Worker 脚本有自己的 asset、模块和调用栈
+            创建者修正
+                Dedicated Worker 也可能由允许使用 Worker 的其他 Worker 上下文创建
+                统一记录 CREATOR-CONTEXT-ID，不能固定写成页面创建
         通信
             Worker 对象与 worker_global_scope 通过消息通信
             message、messageerror 和 close 等结果分别记录
+            Worker 事件修正
+                Worker 接口的相关标准事件包括 message、messageerror 和 error
+                close 是 WorkerGlobalScope 的方法，不是标准 close 事件
+                worker 内部 close()、创建侧 terminate() 和实际终止状态分别记录
         不能直接访问
             页面 DOM
             页面同步调用栈
@@ -206,6 +261,8 @@ Web API 加密逻辑分析
             页面创建 Worker 的调用是一个 CALL-ID
             Worker 内部处理是另一个 CONTEXT-ID
             postMessage 是 ASYNC-EDGE-ID 的候选
+            创建调用修正
+                “页面创建”扩展为任意已记录的 CREATOR-CONTEXT-ID 创建
         Worker 终止
             终止后原调用栈不能继续使用
             新启动的同类脚本需要新的上下文记录
@@ -231,11 +288,22 @@ Web API 加密逻辑分析
             fetch
             message
             push 或其他事件（若当前环境存在）
+        事件分类修正
+            install 和 activate 属于生命周期事件
+            fetch、message、push 属于运行或功能事件
+            以上都可记录为 EVENT-ID，但不能全部称为生命周期事件
         重要边界
             Service Worker 不属于页面 Window 内存
             Service Worker 可以返回 Cache Storage 中的 Response
             Service Worker 可以合成 Response 或转发请求
             Service Worker 可能在请求之间停止并重新启动
+        控制状态分层
+            registration 表示已存在注册记录
+            installing、waiting 和 active 表示 worker 生命周期状态
+            client controller 表示当前页面是否由某个 active worker 控制
+            fetch EVENT-ID 表示本次请求实际触发了 fetch 事件
+            已注册或 active 不证明当前页面受控
+            当前页面受控也不证明每个请求都取得了本次 fetch EVENT-ID 证据
         证据要求
             页面 fetch 调用
             Service Worker fetch 事件
@@ -255,6 +323,10 @@ Web API 加密逻辑分析
         任务
             浏览器从某个任务源取出的可执行工作单元
             可能来自用户事件、定时器、网络、消息或其他宿主事件
+            规范模型修正
+                task source 决定任务进入哪个 task queue
+                event loop 从选定的 task queue 取得 runnable task
+                不能写成 event loop 直接从 task source 取任务
         微任务
             在微任务检查点运行的 Promise reaction、queueMicrotask 或类似工作
         渲染机会
@@ -387,6 +459,9 @@ Web API 加密逻辑分析
         Promise.race
             先完成的结果决定外层 Promise
             其他输入仍可能继续运行
+            精确表述
+                首个 settled 的输入决定外层 Promise
+                settled 包括 fulfilled 和 rejected
         Promise.allSettled
             同时保留 fulfilled 和 rejected 的结果记录
         追踪原则
@@ -435,6 +510,9 @@ Web API 加密逻辑分析
         BroadcastChannel
             允许同一频道相关上下文接收消息
             不应把频道消息归因给单一调用者
+            接收条件修正
+                接收方还需满足同名频道、相同 storage key 和规范规定的可通信条件
+                发送消息的 BroadcastChannel 对象自身不接收该条消息
         记录内容
             MESSAGE-ID
             SENDER-CONTEXT-ID
@@ -514,6 +592,11 @@ Web API 加密逻辑分析
         CORS
             浏览器可能阻止脚本读取 Response
             脚本可见失败不等于服务器没有收到请求
+            失败路径修正
+                CORS check 失败在 Fetch 层形成 network error
+                fetch Promise 通常以 TypeError rejected，脚本不能取得该 Response
+                mode 为 no-cors 时得到 opaque Response 属于另一条受限路径
+                仅凭 TypeError rejection 不能区分 DNS、TLS、CORS 或其他 network error
 
     fetch 记录表
         REQUEST-OBSERVED-ID：<REQUEST-OBSERVED-ID>
@@ -525,12 +608,21 @@ Web API 加密逻辑分析
         method：<REDACTED-METHOD>
         URL 结构：<REDACTED-URL-QUERY-SECRET-VALUES>
         Headers 摘要：<REDACTED-HEADER-NAMES-AND-SAFE-METADATA>
+        mode：<CORS-NO-CORS-SAME-ORIGIN-NAVIGATE-UNKNOWN>
+        credentials：<OMIT-SAME-ORIGIN-INCLUDE-UNKNOWN>
+        cache：<DEFAULT-NO-STORE-RELOAD-NO-CACHE-FORCE-CACHE-ONLY-IF-CACHED-UNKNOWN>
+        redirect：<FOLLOW-ERROR-MANUAL-UNKNOWN>
         Body 类型：<TYPE>
         Body 长度：<LENGTH-OR-UNKNOWN>
         Body 读取阶段：<NOT-READ-READING-COMPLETE-FAILED-UNKNOWN>
         Initiator：<INITIATOR>
         Service Worker 状态：<NOT-OBSERVED-OBSERVED-UNKNOWN>
         缓存状态：<NETWORK-CACHE-SERVICE-WORKER-UNKNOWN>
+        Service Worker registration：<NONE-PRESENT-UNKNOWN>
+        client controller：<NONE-CONTROLLED-UNKNOWN>
+        本次 fetch EVENT-ID：<EVENT-ID-OR-NOT-OBSERVED>
+        响应来源分层：<HTTP-CACHE-FRESH-HTTP-CACHE-REVALIDATED-NETWORK-SERVICE-WORKER-CACHE-STORAGE-UNKNOWN>
+        重新验证状态：<NONE-CONDITIONAL-REQUEST-304-OTHER-UNKNOWN>
         Response headers 时间：<TIME-OR-UNKNOWN>
         Body 开始时间：<TIME-OR-NONE>
         Body 结束时间：<TIME-OR-NONE>
@@ -575,6 +667,10 @@ Web API 加密逻辑分析
             timeout
             responseType
             response 读取
+        分类修正
+            open、setRequestHeader、send、abort 和 response 读取属于调用或操作
+            timeout、responseType 和 withCredentials 属于属性或设置
+            open 的 async 参数决定同步或异步模式
         常见事件
             readystatechange
             load
@@ -590,6 +686,10 @@ Web API 加密逻辑分析
             load 事件不等于业务解析成功
             response 读取和 JSON 解析应单独记录
             同一个 XHR 对象多次 open 不能自动合并为一次请求
+        JSON 解析修正
+            responseType 为 json 时使用 XHR 内建响应转换
+            内建 JSON 解析失败可能得到 null，不等同于 XHR error 事件
+            业务代码显式 JSON.parse(responseText) 是另一个调用和失败位置
 
     XHR 记录表
         REQUEST-OBSERVED-ID：<REQUEST-OBSERVED-ID>
@@ -598,12 +698,18 @@ Web API 加密逻辑分析
         open 位置：<POSITION>
         method：<REDACTED-METHOD>
         URL 结构：<REDACTED-URL-QUERY-SECRET-VALUES>
+        async：<TRUE-FALSE-UNKNOWN>
+        withCredentials：<TRUE-FALSE-UNKNOWN>
+        timeout：<MILLISECONDS-OR-ZERO-UNKNOWN>
         Header 设置位置：<POSITION-OR-NONE>
         send 位置：<POSITION>
         readyState 序列：<OBSERVED-SEQUENCE>
         事件序列：<OBSERVED-SEQUENCE>
         Service Worker 状态：<STATUS>
         缓存状态：<STATUS>
+        client controller：<NONE-CONTROLLED-UNKNOWN>
+        本次 fetch EVENT-ID：<EVENT-ID-OR-NOT-OBSERVED>
+        响应来源分层：<HTTP-CACHE-FRESH-HTTP-CACHE-REVALIDATED-NETWORK-SERVICE-WORKER-CACHE-STORAGE-UNKNOWN>
         responseType：<TYPE-OR-UNKNOWN>
         response 读取位置：<POSITION-OR-NONE>
         失败原因：<ERROR-ABORT-TIMEOUT-PARSE-OTHER-UNKNOWN>
@@ -620,11 +726,22 @@ Web API 加密逻辑分析
         预检
             CORS 预检可能由浏览器自动发起
             不一定存在对应的页面 fetch 调用
+            预检结果修正
+                预检失败会阻止对应的实际 CORS 请求继续发送
+                无需预检的请求可能已经发送后才因响应 CORS check 失败
+                已通过预检的实际请求也可能已经到达服务器
+                Promise rejection 不能单独证明实际请求是否发送
         重定向
             最终请求可能与初始 Request 的 URL、方法或凭据状态不同
             每个可观察请求建立独立 REQUEST-OBSERVED-ID 或关联链
         失败和取消
             DNS、连接、TLS、CORS、HTTP、解析、Abort 和超时分别记录
+        缓存分层
+            HTTP cache fresh hit 可以没有网络往返
+            HTTP cache revalidation 会发送条件请求，并可能收到 304
+            脚本最终使用的缓存表示与 304 网络响应分别记录
+            Cache Storage 是显式 Web API 存储，不等于 HTTP cache
+            Service Worker 可以选择 Cache Storage、HTTP cache 或网络路径
         结论边界
             网络请求出现不等于业务逻辑成功
             业务逻辑执行不等于服务器已收到请求
@@ -683,6 +800,10 @@ Web API 加密逻辑分析
             同步填充给定的 TypedArray
             需要记录视图类型、byteOffset 和 byteLength
             不把随机源内部实现写成页面可直接证明的线程行为
+            输入限制修正
+                只接受整数型 TypedArray，不接受任意 TypedArray
+                视图 byteLength 超过 65536 时抛出 QuotaExceededError
+                记录异常时仍不得重新调用以探测边界
         randomUUID
             同步返回字符串
             不等于签名、摘要或会话认证
@@ -690,6 +811,10 @@ Web API 加密逻辑分析
             是受保护的密钥对象
             只记录已可见的非秘密元数据
             不调用 exportKey 尝试取得密钥材料
+            结构化复制边界
+                CryptoKey 可以按规范结构化序列化并保持 CryptoKey 类型
+                结构化复制不等于导出密钥材料
+                extractable 为 false 仍不应被解释为不可复制
         Promise rejection
             算法不支持
             参数类型错误
@@ -698,6 +823,17 @@ Web API 加密逻辑分析
             不安全上下文
             不可导出的 CryptoKey
             这些失败分别记录
+        错误分类修正
+            不安全上下文通常影响 API 是否暴露或可用，不能统一写成每次 subtle 调用的 rejection
+            不可导出主要影响 exportKey、wrapKey 或其他需要取得密钥材料的操作
+            extractable 为 false 不妨碍满足 key usages 的 sign、verify、encrypt 或 decrypt 等操作
+            Web IDL 参数转换可能同步抛出异常，算法步骤也可能返回 rejected Promise
+            每个具体操作分别记录同步异常、Promise rejection 和 DOMException 名称
+            Promise-returning 操作再修正
+                SubtleCrypto 的 Promise-returning 方法把绑定、转换或算法执行中的异常反映为 rejected Promise
+                getRandomValues、randomUUID 等同步 Crypto 方法的异常另栏记录
+                页面代码在进入 Web Crypto API 之前产生的同步异常也必须单独归类
+                不能把 SubtleCrypto 参数转换普遍写成调用者可见的同步 throw
 
     Web Crypto 参数表
         CRYPTO-OP-ID：<CRYPTO-OP-ID>
@@ -715,6 +851,8 @@ Web API 加密逻辑分析
         输入 byteOffset：<OFFSET-OR-REDACTED>
         输入 byteLength：<LENGTH>
         输入摘要：<LOCAL-REDACTED-DIGEST-OR-NOT-STORED>
+        输入摘要限制：<EXISTING-AUTHORIZED-NONSECRET-DIGEST-OR-NOT-READ-OR-NOT-STORED>
+        摘要不是本阶段新计算项目；原执行未产生获准记录的非秘密摘要时不得额外读取或计算
         Promise 状态：<PENDING-FULFILLED-REJECTED>
         输出类型：<ARRAY-BUFFER-BOOLEAN-CRYPTO-KEY-OTHER>
         输出 byteLength：<LENGTH-OR-NONE>
@@ -740,6 +878,10 @@ Web API 加密逻辑分析
         ECDSA、RSA 或其他算法
             参数结构和输出编码受 Web Crypto 规范及实现影响
             不以常见库默认值替代实际观察
+            输出格式修正
+                已知 Web Crypto 算法的输出格式由对应规范算法规定
+                先依据实际算法和参数查当前规范，再解释输出字节
+                实现差异只能作为兼容性异常另行取证，不能当作常态
         deriveKey、deriveBits
             记录派生目标、长度、salt、info 或等效参数类别
             不记录秘密材料
@@ -747,6 +889,10 @@ Web API 加密逻辑分析
     Web Crypto 运行时链
         业务输入
             记录来源类别和脱敏摘要
+            秘密处理修正
+                只有原执行已产生且获准记录的非秘密摘要才可引用
+                不为脱敏而额外读取、复制或散列秘密输入
+                无可用安全证据时记录 NOT-READ 或 NOT-STORED
         字节视图
             记录类型、offset、length 和编码来源
         Crypto API 调用
@@ -966,9 +1112,19 @@ Web API 加密逻辑分析
             复制值不保留普通对象身份
             部分对象有特定序列化规则
             不可复制对象可能触发错误
+            身份精确边界
+                源对象与克隆结果不是同一个对象身份
+                同一次结构化序列化使用内部 memory 关系保留克隆图中的重复引用
+                循环引用可以在克隆图中保持对应图关系
+                因此不能把“新对象身份”误写成图中每次引用都被独立复制
         Transferable
             ArrayBuffer 等对象可能被转移
             转移后发送方对象可能 detached
+            API 范围修正
+                转移属于结构化序列化过程中的 transfer 步骤，不是结构化复制的替代协议
+                Window、Worker 或 MessagePort 的 postMessage 可以按对应 API 使用 transfer list
+                IndexedDB 使用用于存储的结构化序列化，不接受 transfer list
+                BroadcastChannel.postMessage 不接受 transfer list
         记录要求
             发送前类型和 byteLength
             Transferable 列表
@@ -1162,6 +1318,14 @@ Web API 加密逻辑分析
             记录未产生请求的重复调用
 
     被动 DevTools 观察能力
+        观察设置记录
+            Network Disable cache：<ON-OFF>
+            Network throttling：<PROFILE-OR-NONE>
+            Application Bypass for network：<ON-OFF>
+            CPU throttling：<PROFILE-OR-NONE>
+            这些设置会改变缓存、Service Worker 或时间路径
+            开始 RUNTIME-TRACE-ID 后不切换设置
+            若设置发生变化，结束当前追踪并建立新的 BROWSER-SESSION-ID 或 RUNTIME-TRACE-ID
         Sources
             已存在代码断点
             条件断点和已保存的暂停条件（不执行有副作用表达式）
@@ -1279,6 +1443,11 @@ Web API 加密逻辑分析
             Cookie 属性
             Cache Storage 条目
             Service Worker 注册状态
+        秘密可见性修正
+            只观察名称类别、数量、属性和已经显示的非秘密元数据
+            不点击、展开或读取 Token、Cookie 值、缓存 Body 或其他秘密内容
+            事后写 REDACTED 不能消除观察时已发生的秘密暴露
+            未观察的秘密值记录 NOT-READ，未保存的值记录 NOT-STORED
         快照限制
             当前面板状态不证明值何时写入
             当前值不证明本次 EXECUTION-ID 读取过
@@ -1333,3 +1502,745 @@ Web API 加密逻辑分析
         推断：<INFERRED>
         未知：<UNKNOWN>
 
+    本章运行时证据实体
+        BROWSER-SESSION-ID
+            表示一次完整浏览器运行和观察会话
+        RUNTIME-TRACE-ID
+            表示围绕一个明确页面操作建立的运行时追踪组
+        CONTEXT-ID
+            表示 Window、iframe、Worker 或 Service Worker 等执行上下文
+        FRAME-ID
+            表示一个 frame 文档实例
+            不等于 DevTools 调用帧
+        FRAME-ID 冲突修正
+            第 3 阶段和第 5 阶段已经用 FRAME-ID 表示 DevTools 调用帧
+            该既有含义保持不变
+            本章的文档 frame 实例正式改用 DOCUMENT-FRAME-ID
+            前述“frame 文档实例”字段不再作为 FRAME-ID 的正式定义
+        DOCUMENT-FRAME-ID
+            表示一个 frame 中的具体文档实例
+            导航到新文档时建立新的 DOCUMENT-FRAME-ID
+        WORKER-ID
+            表示一个 Worker 或 Service Worker 实例候选
+        PORT-ID
+            表示 MessagePort 或 Shared Worker 连接端口实例
+        TIMER-ID
+            表示一次 setTimeout 或 setInterval 注册实例
+        XHR-LOCAL-ID
+            表示当前 CONTEXT-ID 中一个 XMLHttpRequest 对象
+        TRANSACTION-ID
+            表示一个 IndexedDB transaction
+        EVENT-ID
+            表示一次事件分发观察
+        TASK-ID
+            表示分析者编号的一次任务观察
+        MICROTASK-ID
+            表示分析者编号的一次微任务观察
+        ASYNC-EDGE-ID
+            表示注册点或上游操作到后续回调的因果边
+        MESSAGE-ID
+            表示一次跨上下文消息
+        REQUEST-OBSERVED-ID
+            表示一次浏览器请求或请求尝试观察
+        CRYPTO-OP-ID
+            表示一次 Web Crypto 或随机 API 操作
+        STORAGE-OP-ID
+            表示一次存储操作
+        STORAGE-SNAPSHOT-ID
+            表示某时刻面板中观察到的存储快照
+        MODULE-EVAL-ID
+            表示一次模块取得、实例化或求值记录
+        SCHEDULER-ID
+            表示一个定时器、框架调度或宿主调度候选
+        PERF-RECORDING-ID
+            表示一次 Performance 录制
+        PAUSE-ID
+            表示一次 DevTools 暂停现场
+        API-OPERATION-REF
+            指向 REQUEST-OBSERVED-ID、CRYPTO-OP-ID、STORAGE-OP-ID 或 MODULE-EVAL-ID 中一种
+            不创建新的独立操作身份
+        所有 ID
+            都是分析者本地编号
+            不能写成浏览器公开稳定标识
+
+    RUNTIME-TRACE-ID
+        建立条件
+            一个明确页面操作
+            一个 BROWSER-SESSION-ID
+            一个 BUILD-ID
+            一个或多个 CONTEXT-ID
+            一个或多个 EXECUTION-ID
+        包含
+            起始事件
+            同步调用
+            异步边
+            网络操作
+            Crypto 操作
+            Storage 操作
+            模块和框架调度
+        不包含
+            另一次页面操作的具体值
+            另一个 BUILD-ID 的调用帧
+            未绑定上下文的猜测
+
+    运行时追踪总表
+        RUNTIME-TRACE-ID：<RUNTIME-TRACE-ID>
+        BROWSER-SESSION-ID：<BROWSER-SESSION-ID>
+        BUILD-ID：<BUILD-ID>
+        CAPTURE-ID：<CAPTURE-ID>
+        DEBUG-SESSION-ID：<DEBUG-SESSION-ID>
+        EXECUTION-ID：<EXECUTION-ID>
+        页面操作：<NORMAL-USER-ACTION-DESCRIPTION>
+        起始时间：<TIME>
+        结束时间：<TIME>
+        CONTEXT-ID 列表：<CONTEXT-ID-LIST>
+        起始 EVENT-ID：<EVENT-ID-OR-NONE>
+        TASK-ID 列表：<TASK-ID-LIST>
+        MICROTASK-ID 列表：<MICROTASK-ID-LIST>
+        ASYNC-EDGE-ID 列表：<ASYNC-EDGE-ID-LIST>
+        REQUEST-OBSERVED-ID 列表：<REQUEST-ID-LIST>
+        CRYPTO-OP-ID 列表：<CRYPTO-ID-LIST>
+        STORAGE-OP-ID 列表：<STORAGE-ID-LIST>
+        MODULE-EVAL-ID 列表：<MODULE-ID-LIST>
+        正式 REQUEST-OBSERVED-ID 列表：<REQUEST-OBSERVED-ID-LIST>
+        正式 CRYPTO-OP-ID 列表：<CRYPTO-OP-ID-LIST>
+        正式 STORAGE-OP-ID 列表：<STORAGE-OP-ID-LIST>
+        正式 MODULE-EVAL-ID 列表：<MODULE-EVAL-ID-LIST>
+        占位符修正
+            REQUEST-ID、CRYPTO-ID、STORAGE-ID 和 MODULE-ID 只视为旧式缩写
+            新记录必须使用上面的完整正式名称
+        时间扰动：<PAUSE-RECORDING-THROTTLING-OTHER>
+        未知项：<UNKNOWNS>
+
+    异步边表
+        ASYNC-EDGE-ID：<ASYNC-EDGE-ID>
+        RUNTIME-TRACE-ID：<RUNTIME-TRACE-ID>
+        上游 CONTEXT-ID：<CONTEXT-ID>
+        下游 CONTEXT-ID：<CONTEXT-ID>
+        上游 CALL-ID 或 PAUSE-ID：<UPSTREAM-ID>
+        下游 CALL-ID 或暂停位置：<DOWNSTREAM-ID>
+        类型：<PROMISE-TIMER-MESSAGE-NETWORK-STORAGE-MODULE-FRAMEWORK-OTHER>
+        注册时间：<TIME>
+        触发时间：<TIME>
+        DevTools 是否显示：<YES-NO-PARTIAL>
+        直接观察：<OBSERVED-EVIDENCE>
+        推断依据：<INFERENCE-OR-NONE>
+        证据等级：<LEVEL>
+        未知项：<UNKNOWNS>
+
+    API 操作统一表
+        OPERATION-ID：<REQUEST-OBSERVED-ID-CRYPTO-OP-ID-STORAGE-OP-ID-MODULE-EVAL-ID>
+        字段修正
+            正式字段名为 API-OPERATION-REF
+            值必须是一个已有的 REQUEST-OBSERVED-ID、CRYPTO-OP-ID、STORAGE-OP-ID 或 MODULE-EVAL-ID
+            不把四个名称拼成一个新 ID
+        类型：<NETWORK-CRYPTO-STORAGE-MODULE>
+        BUILD-ID：<BUILD-ID>
+        EXECUTION-ID：<EXECUTION-ID>
+        CONTEXT-ID：<CONTEXT-ID>
+        TASK-ID 或 MICROTASK-ID：<LOCAL-ID>
+        调用位置：<GENERATED-ASSET-ID-LINE-COLUMN>
+        输入类型：<TYPE>
+        输入长度：<LENGTH-OR-UNKNOWN>
+        输入值：<REDACTED-OR-NOT-STORED>
+        输出类型：<TYPE-OR-NONE>
+        输出长度：<LENGTH-OR-UNKNOWN>
+        输出值：<REDACTED-OR-NOT-STORED>
+        同步或异步：<SYNC-ASYNC>
+        Promise 或事件状态：<STATUS>
+        关联 CALL-ID：<CALL-ID-LIST>
+        关联 STAGE-ID：<STAGE-ID-LIST>
+        关联 LAYER-ID：<LAYER-ID-LIST>
+        证据等级：<LEVEL>
+
+    第 6 阶段到第 7 阶段的映射
+        推荐链
+            BUILD-ID
+                GENERATED-ASSET-ID
+                    CHUNK-OBSERVED-ID
+                        MODULE-LOCAL-ID
+                            SYMBOL-ID
+                                CALL-ID
+                                    CONTEXT-ID
+                                        TASK-ID 或 MICROTASK-ID
+                                            ASYNC-EDGE-ID
+                                                API 操作 ID
+        构建层
+            说明代码位于哪个 asset、chunk 和模块候选
+        运行层
+            说明代码在哪个上下文和时间线实际执行
+        API 层
+            说明本次执行调用了哪个 Network、Crypto、Storage 或 Module API
+        不能替代
+            runtime loader 证明装载，不证明业务调用
+            模块求值证明顶层执行，不证明导出函数调用
+            同一 SYMBOL-ID 不证明每次调用参数相同
+
+    第 5 阶段到第 7 阶段的映射
+        CALL-ID
+            表示一次具体函数调用
+            可以产生多个 ASYNC-EDGE-ID
+        STAGE-ID
+            可以跨越多个任务、微任务和上下文
+            每条跨边仍需独立证据
+        LAYER-ID
+            不能仅凭所在 Worker、chunk 或 API 名称确定
+        OUTPUT-ID
+            可能在 Promise fulfilled 后才形成
+            必须记录形成它的下游 CALL-ID
+        REQUEST-OBSERVED-ID
+            与第 2 阶段 CAPTURE-ID 关联
+            不等于第 5 阶段签名输入
+        映射原则
+            一个执行的值不与另一个执行拼接
+            同名 Promise、Worker 或请求不合并身份
+
+    运行时映射表
+        RUNTIME-MAP-ID：<RUNTIME-MAP-ID>
+        BUILD-ID：<BUILD-ID>
+        CAPTURE-ID：<CAPTURE-ID>
+        DEBUG-SESSION-ID：<DEBUG-SESSION-ID>
+        EXECUTION-ID：<EXECUTION-ID>
+        GENERATED-ASSET-ID：<GENERATED-ASSET-ID>
+        CHUNK-OBSERVED-ID：<CHUNK-OBSERVED-ID-OR-UNKNOWN>
+        MODULE-LOCAL-ID：<MODULE-LOCAL-ID-OR-UNKNOWN>
+        SYMBOL-ID：<SYMBOL-ID>
+        CALL-ID：<CALL-ID>
+        STAGE-ID：<STAGE-ID>
+        LAYER-ID：<LAYER-ID>
+        CONTEXT-ID：<CONTEXT-ID>
+        TASK-ID：<TASK-ID-OR-NONE>
+        MICROTASK-ID：<MICROTASK-ID-OR-NONE>
+        ASYNC-EDGE-ID：<ASYNC-EDGE-ID-OR-NONE>
+        API 操作 ID：<OPERATION-ID-OR-NONE>
+        API-OPERATION-REF：<ONE-FORMAL-OPERATION-ID-OR-NONE>
+        字段修正：后续记录使用 API-OPERATION-REF，不新建 OPERATION-ID
+        PAUSE-ID：<PAUSE-ID-OR-NONE>
+        观察：<OBSERVED>
+        推断：<INFERRED>
+        未知：<UNKNOWN>
+        证据等级：<LEVEL>
+
+    跨上下文映射
+        发送端
+            CONTEXT-ID
+            CALL-ID
+            MESSAGE-ID
+            发送时间
+            数据类型和长度
+        接收端
+            CONTEXT-ID
+            EVENT-ID
+            TASK-ID
+            接收 CALL-ID
+            接收时间
+        数据身份
+            结构化复制时记录值等价候选
+            Transferable 时记录转移关系
+            不把对象引用身份跨上下文保留
+            图关系修正
+                值等价候选需要同时记录重复引用和循环关系是否在克隆图中保留
+                跨上下文不保留源对象身份，但不等于丢失克隆图内部别名关系
+        缺失情况
+            只观察到发送时，接收端为 NOT-OBSERVED
+            只观察到接收时，发送端为 UNKNOWN
+            DevTools 异步栈没有跨越时，用 MESSAGE-ID 连接
+
+    Service Worker 请求映射
+        页面端
+            fetch 或资源请求调用
+            REQUEST-OBSERVED-ID
+        Service Worker 端
+            fetch EVENT-ID
+            CONTEXT-ID
+            respondWith 关联
+        来源分支
+            Cache Storage
+            合成 Response
+            网络 fetch
+            错误或拒绝
+        页面结果
+            Response headers
+            Body 读取
+            Promise 延续
+        结论边界
+            页面 fetch Promise 的时间线不能代替 Service Worker 内部调用栈
+            Service Worker 返回缓存不能写成服务器本次响应
+
+    一次正常操作的追踪流程
+        第一步
+            明确授权范围和正常页面操作
+        第二步
+            建立 BROWSER-SESSION-ID、BUILD-ID 和 RUNTIME-TRACE-ID
+        第三步
+            列出顶层页面、iframe、Worker 和 Service Worker CONTEXT-ID
+        第四步
+            选择第 5 阶段已有的 EXECUTION-ID 或为新正常操作建立新编号
+        第五步
+            从 Event Listener Breakpoint、已知 CALL-ID 或请求断点取得起点
+        第六步
+            记录当前同步调用栈
+        第七步
+            记录 Promise、timer、message、network 或 module 异步边
+        第八步
+            记录 fetch/XHR、Web Crypto、Storage 和动态模块操作
+        第九步
+            与 Network、Performance 和 Application 只读证据交叉核对
+        第十步
+            把生成位置映射回第 6 阶段 asset、chunk 和模块
+        第十一步
+            把 API 操作映射回第 5 阶段 STAGE-ID 和 LAYER-ID
+        第十二步
+            分开写 OBSERVED、INFERRED 和 UNKNOWN
+
+    起点选择
+        UI 事件起点
+            适合追踪用户动作到业务处理
+        请求断点起点
+            适合从 fetch/XHR 回溯请求构造
+        Crypto 调用起点
+            适合连接字节输入、Promise 和输出封装
+        Storage 操作起点
+            适合查状态来源和异步事务
+        动态模块起点
+            适合区分装载、求值和调用
+        选择原则
+            优先使用已经在前几章建立的 CALL-ID
+            不为找到起点添加新代码
+            起点不是因果链起源的证明
+
+    观察窗口
+        开始前
+            记录页面、frame、Worker、Service Worker 和缓存的当前状态
+            只做快照，不清理状态
+        操作中
+            记录事件、同步栈和异步边
+        操作后
+            记录网络、Storage、模块和框架状态变化
+        多次正常观察
+            每次建立新的 EXECUTION-ID
+            只比较结构和顺序
+            不拼接具体值
+        时间扰动
+            断点暂停和 Performance 录制分别标记
+            不用被暂停放大的时间差证明页面正常行为
+
+    同步栈记录步骤
+        当前帧
+            生成位置
+            Source Map 状态
+            CONTEXT-ID
+            this 类别
+            参数类型和长度
+        调用者
+            逐帧记录 CALL-ID
+            标记框架、runtime、业务或 Web API 包装层
+        异步祖先
+            单独列出
+            不加入同步帧编号
+        返回后
+            同步栈消失
+            后续工作使用 ASYNC-EDGE-ID 连接
+
+    异步边记录步骤
+        确定注册点
+            then、await、timer、event、message、network、storage 或 module
+        确定下游触发
+            callback、reaction、event handler 或 module completion
+        确定上下文
+            发送端与接收端是否相同
+        确定时间
+            注册、触发和完成分别记录
+        确定证据
+            DevTools Async Stack
+            暂停位置
+            Network initiator
+            Message 或 Promise 身份候选
+        无法直接证明
+            标记 INFERRED
+            保留替代解释
+
+    请求追踪步骤
+        调用前
+            记录 Request 或 XHR 对象形成位置
+        调用时
+            记录 method、脱敏 URL 结构、Header 名称和 Body 类型
+        浏览器处理
+            记录 Service Worker、缓存、预检和重定向
+        响应
+            记录 headers 可用时间
+        Body
+            记录读取方法的原始页面调用
+            不在控制台额外读取
+        业务延续
+            记录解析、错误和下一次 CALL-ID
+        网络关联
+            使用 CAPTURE-ID 和 REQUEST-OBSERVED-ID
+
+    Crypto 追踪步骤
+        上游
+            记录字符串到字节的编码位置
+        调用
+            记录 API、算法参数、CryptoKey 元数据和 BufferSource 范围
+        异步完成
+            记录 Promise 状态和 ASYNC-EDGE-ID
+        下游
+            记录输出编码、截断、拼接和请求放置
+        安全
+            不导出密钥
+            不复制输入输出秘密
+            不重新调用原语
+
+    Storage 追踪步骤
+        识别类型
+            localStorage、sessionStorage、IndexedDB、Cache Storage、Cookie 或内存
+        记录上下文
+            origin、frame、Worker 和分区状态
+        记录操作
+            读取、写入、删除、事务、事件或快照
+        记录结果
+            同步返回、Promise、IDBRequest 或 transaction 事件
+        关联业务
+            值进入哪个 CALL-ID、STAGE-ID 或请求
+        安全
+            不额外读取秘密
+            不修改或清空数据
+
+    动态模块追踪步骤
+        说明符或 runtime 请求
+            记录生成位置
+        chunk 或模块取得
+            记录 Network 和 cache
+        注册或实例化
+            记录 runtime 或浏览器 ESM 层
+        求值
+            记录 MODULE-EVAL-ID
+        import Promise
+            记录 fulfilled 或 rejected
+        导出调用
+            只有实际调用才建立 CALL-ID
+        结论
+            六个阶段不合并
+
+    框架调度追踪步骤
+        识别框架和版本
+        识别事件代理入口
+        标记 scheduler、render、commit 和 effect 候选
+        找到业务 handler
+        记录状态更新和请求触发的相对阶段
+        区分开发模式重复执行
+        与生产 BUILD-ID 分开
+
+    证据冲突处理
+        Network 显示请求但没有页面调用栈
+            检查资源加载、Service Worker、sendBeacon、导航和 Worker
+        页面调用 fetch 但没有网络往返
+            检查缓存、Service Worker、取消和 CORS
+        Crypto 调用完成但请求字段未出现
+            检查输出封装、缓存、错误分支和另一次请求
+        Storage 有值但本次没有读取
+            快照不证明本次使用
+        动态 chunk 已下载但函数未调用
+            区分预加载、模块求值和业务调用
+        Async Stack 与调用时序矛盾
+            记录 DevTools 合成信息和实际暂停时间
+        处理原则
+            不强行选择一种解释
+            保留冲突证据和 UNKNOWN
+
+    必须保留的替代解释
+        Promise 调度而不是同步返回
+        浏览器缓存而不是网络服务器
+        Service Worker Response 而不是服务器 Response
+        CORS 可见性失败而不是请求未发送
+        事件代理而不是组件自身监听器
+        框架批处理而不是重复业务调用
+        开发模式检查而不是生产重复执行
+        Worker 重启而不是普通调用栈丢失
+        Worker 重启用词修正
+            Service Worker 可以被终止后按后续事件重新启动
+            Dedicated Worker 或 Shared Worker 终止后需要新建实例，不能称为同一实例自动重启
+        预加载而不是业务提前执行
+        模块缓存而不是代码没有加载
+        定时器节流而不是随机延迟
+        DevTools 暂停造成时间变化
+        Performance 录制造成额外开销
+        浏览器隐私分区而不是 Storage API 失效
+        CryptoKey 不可见而不是没有密钥
+        Source Map 或 Async Stack 的调试器合成信息
+        错误恢复、重试或取消而不是算法分支
+
+    常见错误
+        把“JavaScript 单线程”写成“整个浏览器只有一个线程或事件循环”
+            问题
+                Window、Worker 和浏览器内部执行范围不同
+            修正
+                每个可观察上下文建立 CONTEXT-ID
+        把所有事件监听器回调写成独立任务
+            问题
+                dispatchEvent 可以同步分发
+            修正
+                记录事件来源和当前同步栈
+        把 Promise 延续当作同步调用栈
+            问题
+                reaction 在微任务检查点执行
+            修正
+                使用 ASYNC-EDGE-ID
+        把微任务顺序当作所有任务源的全局顺序
+            问题
+                宿主任务源和渲染调度有独立规则
+            修正
+                只记录本次观察的局部时间线
+        把 setTimeout(0) 当成立即执行
+            问题
+                回调仍需等待任务调度和最小延迟规则
+            修正
+                记录注册与实际回调时间
+        把 fetch fulfilled 当作 Body 已完整读取
+            问题
+                Response 和 Body 读取是不同阶段
+            修正
+                分别记录 headers 和 Body Promise
+        把 response.json 失败归因于网络请求失败
+            问题
+                JSON 解析可在请求成功后失败
+            修正
+                记录失败阶段
+        把 HTTP 404 或 500 当作 fetch Promise 必然 rejected
+            问题
+                fetch 通常仍提供 Response
+            修正
+                分开记录网络错误、HTTP 状态和业务错误
+        把缓存命中当作服务器本次响应
+            问题
+                可能没有网络往返
+            修正
+                记录 cache 和 Service Worker 状态
+        把 Service Worker Response 当页面 fetch 直接返回
+            问题
+                中间有独立上下文和 fetch 事件
+            修正
+                建立 Service Worker CONTEXT-ID
+        把 CORS 预检当作页面代码直接调用
+            问题
+                浏览器可以自动发起
+            修正
+                用 initiator 和请求类型区分
+        把 XHR readyState 常见顺序写成所有场景保证
+            问题
+                abort、timeout、错误和缓存会改变观察
+            修正
+                记录实际事件序列
+        把 Web Crypto API 名称当完整算法规范
+            问题
+                参数、密钥和输入输出仍未知
+            修正
+                使用 CRYPTO-OP-ID 参数表
+        把 CryptoKey 当普通可序列化对象
+            问题
+                密钥材料受 extractable 和 API 限制
+            修正
+                只记录非秘密元数据
+            事实修正
+                CryptoKey 在 Web Crypto 规范中是 serializable
+                它可以经结构化序列化传递，也可以存入 IndexedDB
+                克隆结果仍是 CryptoKey，不是普通 JSON 键值对象
+                extractable 为 false 限制密钥材料导出，不等于禁止结构化复制
+                真正的错误是把结构化复制等同于导出秘密密钥材料
+        把 getRandomValues 当 Promise API
+            问题
+                它同步填充 TypedArray
+            修正
+                记录同步调用和视图范围
+                还必须确认它是整数型 TypedArray 且 byteLength 不超过 65536
+        把 localStorage、IndexedDB、Cache Storage 和 Cookie 混为一谈
+            问题
+                同步性、事务、可见性和生命周期不同
+            修正
+                每类独立 STORAGE-OP-ID
+        把 storage 事件写成源文档同步事件
+            问题
+                事件通常面向其他相关文档
+            修正
+                记录发送和接收上下文
+        把同源 iframe 当成同一 Realm
+            问题
+                两个 Window 仍有独立全局对象
+            修正
+                分别建立 CONTEXT-ID
+        把 postMessage 写成对象引用共享
+            问题
+                通常使用结构化复制或 Transferable
+            修正
+                记录复制和转移语义
+        把跨源消息的 origin 校验写成字符串包含
+            问题
+                origin 比较有明确结构
+            修正
+                记录 targetOrigin 和 event.origin
+        把 Worker 内部线程实现当作页面可证明事实
+            问题
+                页面只能观察 API 和消息边界
+            修正
+                内部实现写 UNKNOWN
+        把 chunk 下载当作 module evaluation
+            问题
+                还有注册、实例化和求值阶段
+            修正
+                使用 MODULE-EVAL-ID
+        把 dynamic import Promise 完成当作导出函数执行
+            问题
+                namespace 可用后函数仍可能未调用
+            修正
+                只有实际调用才建立 CALL-ID
+        把框架调度函数当业务签名函数
+            问题
+                scheduler、render 和 effect 是框架层
+            修正
+                标记框架层后继续追踪业务 handler
+        把开发模式重复执行当服务器重复请求
+            问题
+                重复 render 不保证重复 Network
+            修正
+                分别统计 CALL-ID 和 REQUEST-OBSERVED-ID
+        在控制台调用 getter、Proxy、Body 或 CryptoKey 方法
+            问题
+                会产生副作用或秘密读取
+            修正
+                只读已物化原始值和安全元数据
+        用 DevTools 暂停后的延迟证明页面原本超时
+            问题
+                暂停本身改变时间
+            修正
+                标记时间扰动并保留替代解释
+        跨 BUILD-ID、CONTEXT-ID 或 EXECUTION-ID 拼接具体值
+            问题
+                对象、状态和分支身份不同
+            修正
+                每次执行独立记录
+        把 TASK-ID 写成浏览器稳定 ID
+            问题
+                本章 ID 是分析者本地编号
+            修正
+                在表中标明 LOCAL-ID
+        为获得更多信息添加 Hook、日志、补丁或请求重放
+            问题
+                改变了原运行时和证据
+            修正
+                只使用被动 DevTools 观察
+
+    本阶段完成定义
+        上下文
+            顶层页面、iframe、Worker 和 Service Worker 已建立 CONTEXT-ID
+            每个上下文已绑定 BUILD-ID 和 asset 证据
+        时间线
+            同步栈、任务、微任务和异步因果边已分开
+            TASK-ID 和 MICROTASK-ID 明确为本地编号
+        事件
+            起始 EVENT-ID、传播和框架代理层已记录
+        Network
+            fetch/XHR 调用、浏览器请求、Service Worker、缓存、响应头和 Body 读取已分开
+        Crypto
+            操作类型、参数边界、CryptoKey 元数据、输入输出类型和 Promise 状态已记录
+        Storage
+            存储类型、上下文、事务、事件和快照已分开
+        跨上下文
+            每个消息有发送端、接收端和 MESSAGE-ID
+        模块
+            chunk 取得、模块实例化或注册、求值、import Promise 和导出调用已分开
+        框架
+            调度层、业务 handler、开发模式和生产模式已分开
+        前章映射
+            CALL-ID、STAGE-ID、LAYER-ID 已连接到运行时 API 操作
+            GENERATED-ASSET-ID 和 MODULE-LOCAL-ID 已连接到 CONTEXT-ID
+        边界
+            未修改请求、运行时、源代码、Storage 或缓存
+            未执行未知动态代码
+            未读取或提取秘密值
+            未绕过任何保护
+
+    本阶段验收
+        能说明
+            同步调用栈、任务、微任务和异步因果栈的区别
+            dispatchEvent 为什么不自动形成新任务
+            Promise fulfilled 为什么不等于所有后续工作完成
+            await 前后为什么需要 ASYNC-EDGE-ID
+            setTimeout(0) 为什么不是立即执行
+            iframe、Worker 和 Service Worker 为什么需要独立 CONTEXT-ID
+            fetch fulfilled 为什么不等于 Body 已读完
+            Network 请求为什么不等于 JavaScript Promise 时间线
+            Service Worker 和缓存为什么会改变请求证据
+            XHR readyState、事件和 response 读取为什么分别记录
+            Web Crypto 操作为什么需要参数、密钥模型、输入字节和 Promise 状态
+            getRandomValues 为什么不是 Promise API
+            localStorage、IndexedDB、Cache Storage 和 Cookie 的主要边界
+            structured clone 与 Transferable 为什么改变对象身份判断
+            dynamic import 的装载、求值、Promise 和导出调用为什么不能合并
+            框架事件代理、批处理和开发模式重复执行为什么不能直接当业务调用
+            Call Stack 与 Async Stack 为什么必须分栏
+            DevTools 暂停和 Performance 录制为什么需要标记时间扰动
+        能形成
+            一份上下文表
+            一份运行时时间线表
+            一份异步边表
+            一份 fetch/XHR 请求表
+            一份 Web Crypto 操作表
+            一份 Storage 操作表
+            一份跨上下文消息表
+            一份模块运行时表
+            一份暂停记录表
+            一份第 5、6 阶段到运行时的映射表
+        不要求
+            不要求修改页面或请求
+            不要求安装注入式工具
+            不要求调用 getter、Body 读取、Storage 或密钥导出方法
+            不要求恢复浏览器内部线程实现
+            不要求绕过 CORS、Service Worker、反调试或自校验
+            不要求完成真实站点或靶场练习
+
+    当前事实核验入口
+        WHATWG HTML Event Loops
+            https://html.spec.whatwg.org/multipage/webappapis.html#event-loops
+        ECMAScript Jobs and Job Queues
+            https://tc39.es/ecma262/#sec-jobs-and-job-queues
+        Fetch Standard
+            https://fetch.spec.whatwg.org/
+        XMLHttpRequest Standard
+            https://xhr.spec.whatwg.org/
+        Web Cryptography API
+            https://w3c.github.io/webcrypto/
+        Indexed Database API
+            https://w3c.github.io/IndexedDB/
+        Storage Standard
+            https://storage.spec.whatwg.org/
+        HTML Workers
+            https://html.spec.whatwg.org/multipage/workers.html
+        HTML Web Messaging
+            https://html.spec.whatwg.org/multipage/web-messaging.html
+        HTML Web Storage
+            https://html.spec.whatwg.org/multipage/webstorage.html
+        HTML Structured Data
+            https://html.spec.whatwg.org/multipage/structured-data.html
+        Service Workers 与 Cache API
+            https://w3c.github.io/ServiceWorker/
+        HTTP State Management Cookies
+            https://www.rfc-editor.org/rfc/rfc6265
+        HTTPbis Cookies 当前草案
+            https://httpwg.org/http-extensions/draft-ietf-httpbis-rfc6265bis.html
+            用于核对 SameSite 等 RFC 6265 基线之后的当前语义
+        PrivacyCG CHIPS
+            https://privacycg.github.io/CHIPS/
+            用于核对 Partitioned Cookie 提案和实现范围
+            它不能被写成 RFC 6265 已定义的稳定语义
+            必须绑定当前浏览器版本和提案状态
+        ECMAScript Import Calls
+            https://tc39.es/ecma262/#sec-import-calls
+        ECMAScript Module Evaluation
+            https://tc39.es/ecma262/#sec-moduleevaluation
+        使用方式
+            记录核对日期、浏览器版本和具体条目
+            规范描述与 DevTools 显示冲突时分别记录
+            不把浏览器实现细节写成规范保证
+
+    完成本阶段后再进入
+        第 8 阶段：扩展协议与媒体边界

@@ -1,4 +1,4 @@
-# Scrapy settings for BiXueJian_章节名 project
+# Scrapy settings for refer_picture project
 #
 # For simplicity, this file contains only settings considered important or
 # commonly used. You can find more settings consulting the documentation:
@@ -7,19 +7,19 @@
 #     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
-BOT_NAME = "BiXueJian_章节名"
+BOT_NAME = "refer_picture"
 
-SPIDER_MODULES = ["BiXueJian_章节名.spiders"]
-NEWSPIDER_MODULE = "BiXueJian_章节名.spiders"
+SPIDER_MODULES = ["refer_picture.spiders"]
+NEWSPIDER_MODULE = "refer_picture.spiders"
 
 ADDONS = {}
 
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
-#USER_AGENT = "BiXueJian_章节名 (+http://www.yourdomain.com)"
+#USER_AGENT = "refer_picture (+http://www.yourdomain.com)"
 
 # Obey robots.txt rules
-ROBOTSTXT_OBEY = True
+ROBOTSTXT_OBEY = False
 
 # Concurrency and throttling settings
 #CONCURRENT_REQUESTS = 16
@@ -41,13 +41,13 @@ DOWNLOAD_DELAY = 1
 # Enable or disable spider middlewares
 # See https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 #SPIDER_MIDDLEWARES = {
-#    "BiXueJian_章节名.middlewares.BixuejianSpiderMiddleware": 543,
+#    "refer_picture.middlewares.RefererSpiderMiddleware": 543,
 #}
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #DOWNLOADER_MIDDLEWARES = {
-#    "BiXueJian_章节名.middlewares.BixuejianDownloaderMiddleware": 543,
+#    "refer_picture.middlewares.RefererDownloaderMiddleware": 543,
 #}
 
 # Enable or disable extensions
@@ -58,9 +58,9 @@ DOWNLOAD_DELAY = 1
 
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
-ITEM_PIPELINES = {
-    "BiXueJian_章节名.pipelines.BixuejianPipeline": 300,
-}
+#ITEM_PIPELINES = {
+#    "refer_picture.pipelines.RefererPipeline": 300,
+#}
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html

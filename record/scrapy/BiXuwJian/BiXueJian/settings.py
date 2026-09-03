@@ -1,4 +1,4 @@
-# Scrapy settings for referer照片 project
+# Scrapy settings for BiXueJian project
 #
 # For simplicity, this file contains only settings considered important or
 # commonly used. You can find more settings consulting the documentation:
@@ -7,19 +7,19 @@
 #     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
-BOT_NAME = "referer照片"
+BOT_NAME = "BiXueJian"
 
-SPIDER_MODULES = ["referer照片.spiders"]
-NEWSPIDER_MODULE = "referer照片.spiders"
+SPIDER_MODULES = ["BiXueJian.spiders"]
+NEWSPIDER_MODULE = "BiXueJian.spiders"
 
 ADDONS = {}
 
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
-#USER_AGENT = "referer照片 (+http://www.yourdomain.com)"
+#USER_AGENT = "BiXueJian (+http://www.yourdomain.com)"
 
 # Obey robots.txt rules
-ROBOTSTXT_OBEY = False
+ROBOTSTXT_OBEY = True
 
 # Concurrency and throttling settings
 #CONCURRENT_REQUESTS = 16
@@ -41,13 +41,13 @@ DOWNLOAD_DELAY = 1
 # Enable or disable spider middlewares
 # See https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 #SPIDER_MIDDLEWARES = {
-#    "referer照片.middlewares.RefererSpiderMiddleware": 543,
+#    "BiXueJian.middlewares.BixuejianSpiderMiddleware": 543,
 #}
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #DOWNLOADER_MIDDLEWARES = {
-#    "referer照片.middlewares.RefererDownloaderMiddleware": 543,
+#    "BiXueJian.middlewares.BixuejianDownloaderMiddleware": 543,
 #}
 
 # Enable or disable extensions
@@ -58,9 +58,9 @@ DOWNLOAD_DELAY = 1
 
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
-#ITEM_PIPELINES = {
-#    "referer照片.pipelines.RefererPipeline": 300,
-#}
+ITEM_PIPELINES = {
+    "BiXueJian.pipelines.BixuejianPipeline": 300,
+}
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html

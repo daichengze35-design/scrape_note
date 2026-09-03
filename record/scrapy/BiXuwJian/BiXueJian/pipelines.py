@@ -10,10 +10,10 @@ from itemadapter import ItemAdapter
 
 class BixuejianPipeline:
     f = None
-    def open_spider(self, spider):
-        self.f = open("return/碧血剑章节名.txt", "w")
-    def close_spider(self, spider):
+    def open_spider(self):
+        self.f = open("碧血剑章节名.txt", "w", encoding="utf-8")
+    def close_spider(self):
         self.f.close()
     def process_item(self, item):
-        self.f.write(item.title + "\n")
+        self.f.write(item["title"] + "\n")
         return item

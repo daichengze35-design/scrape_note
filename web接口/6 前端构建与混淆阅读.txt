@@ -1381,6 +1381,18 @@ Web API 加密逻辑分析
             names
             mappings
             sourcesContent
+            ignoreList（当前格式允许的可选字段）
+        regular source map
+            使用 sources、names 和 mappings 描述普通映射
+            sourcesContent 和 ignoreList 都是可选信息
+        index source map
+            顶层使用 sections 组织多个映射区段
+            顶层共享 version，并可以包含 file
+            每个 section 包含 offset 和嵌套 map
+            offset 使用 line 和 column 表示该节的生成起始位置
+            sections 必须按起始位置排序且不得重叠
+            遇到 index map 时先应用 section offset，再读取嵌套完整 map
+            不能把 sections 当作普通 sources 列表处理
         version
             当前常见格式值为 3
         sources
@@ -1424,6 +1436,11 @@ Web API 加密逻辑分析
         外部 map
             独立资源
             生成代码可含 sourceMappingURL
+        外部关联方式修正
+            生成资源可以通过 HTTP SourceMap 响应头关联 Source Map
+            也可以通过 sourceMappingURL source annotation 关联
+            两者同时存在时，HTTP SourceMap 响应头优先
+            旧 X-SourceMap 响应头已经弃用，不能作为当前首选写法
         inline map
             以 data URI 放入生成代码
         hidden map
@@ -1438,6 +1455,8 @@ Web API 加密逻辑分析
         判断限制
             看不到注释只能证明当前 asset 未公开该引用
             不能证明构建系统从未生成
+            还必须检查生成资源响应中的 HTTP SourceMap Header
+            没有 sourceMappingURL 注释不能排除响应头关联
 
     多阶段 Source Map
         典型链
@@ -1463,6 +1482,9 @@ Web API 加密逻辑分析
         必须检查
             当前 GENERATED-ASSET-ID 内容摘要
             sourceMappingURL 来源
+            HTTP SourceMap 响应头
+            关联来源：<HTTP-SOURCEMAP-HEADER-SOURCE-ANNOTATION-BOTH-NONE>
+            两者并存时是否按 HTTP SourceMap 响应头解析
             map 获取时间
             map 的 file 字段
             映射点是否落在有效生成范围
@@ -2179,6 +2201,9 @@ Web API 加密逻辑分析
         BUILD-ID：<BUILD-ID>
         对应 GENERATED-ASSET-ID：<GENERATED-ASSET-ID>
         获取方式：<EXTERNAL-INLINE-DEVTOOLS-OTHER>
+        关联来源：<HTTP-SOURCEMAP-HEADER-SOURCE-ANNOTATION-BOTH-NONE>
+        map 类型：<REGULAR-INDEX-UNKNOWN>
+        sections 数量：<COUNT-OR-NOT-APPLICABLE>
         获取时间：<TIME>
         map 内容摘要：<REDACTED-DIGEST>
         file：<FILE-FIELD>

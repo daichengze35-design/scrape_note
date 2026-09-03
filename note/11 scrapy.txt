@@ -226,11 +226,6 @@ MySQL管道
                     self.cursor.execute(sql, (item["title"], item["author"]))
                     self.conn.commit()
                     return item
-    注意
-        SQL参数不要用字符串拼接
-        使用占位符可以减少SQL注入和引号转义问题
-        真实项目还需要处理唯一键冲突、提交频率和异常回滚
-
 Redis管道
     安装
         pip install redis
@@ -248,16 +243,10 @@ Redis管道
                     data = json.dumps(dict(item), ensure_ascii=False)
                     self.conn.lpush("books", data)
                     return item
-    注意
-        Redis列表中存储字符串更稳定
-        item对象直接写入Redis可能不是想要的格式
-        需要根据后续读取方式选择list、set、hash等结构
-
 ImagesPipeline
     作用
         Scrapy内置图片下载管道
         可以根据图片地址发起下载请求并保存图片
-        需要安装Pillow
     安装
         pip install pillow
     自定义字段写法
